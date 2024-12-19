@@ -1,0 +1,4 @@
+.vscode
+__pycache__
+found-model.lp
+tmp-*.xlsx
