@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from dataclasses import dataclass
 import fcntl
 import os
 import sys
@@ -9,11 +10,12 @@ from colorama import Back, Fore, Style
 import pandas as pd
 
 class ShiftTable:
-    def __init__(self, df, title, width, df_shift, penalties, penalty_map):
+    def __init__(self, df, title, width, df_shifts, df_staffs, penalties, penalty_map):
         self.df = df
         self.title = title
         self.width = width
-        self.df_shift = df_shift
+        self.df_shifts = df_shifts
+        self.df_staffs = df_staffs
         self.penalties = penalties
         self.penalty_map = penalty_map
 
@@ -31,8 +33,11 @@ def make_shift_table(atoms):
     header = None
     assigneds = []
     dates = []
+    staffs = []
+    staff_groups = []
     penalties = []
     htypes = []
+    vtypes = []
     for atom in atoms:   
         args = atom.arguments            
         if atom.match("header", 1):
@@ -49,6 +54,17 @@ def make_shift_table(atoms):
             a_day = args[1].number % 100
             dweek = args[2].string
             dates.append((r_day, a_day, dweek))
+        elif atom.match("staff", 5):
+            no    = args[0].number
+            name  = args[1].string
+            job   = args[2].string
+            id    = args[3].string
+            point = args[4].number
+            staffs.append((no, name, job, id, point))
+        elif atom.match("staff_group", 2):
+            gname = args[0].string
+            staff = args[1].number
+            staff_groups.append({'StaffGroup': gname, 'No': staff})
         elif atom.match("penalty", 7):
             ctype = args[0]
             cause = args[1]
@@ -70,6 +86,12 @@ def make_shift_table(atoms):
         elif atom.match("horizontal_constraint_type", 1):
             shift_group  = args[0].string
             htypes.append(shift_group)
+        elif atom.match("vertical_constraint_type", 3):
+            staff_group = args[0].string
+            shift_group = args[1].string
+            obj_type = args[2].string
+            vtypes.append({'StaffGroup': staff_group, 'ShiftGroup': shift_group, 'ObjType': obj_type})
+
 
     # Shift assignments
     df = pd.DataFrame(assigneds)
@@ -82,7 +104,7 @@ def make_shift_table(atoms):
         print("=========================================")
 
     # ------------------------------------------------------------
-    # Make a shift table
+    # Make the shift table
     df_tbl = df.pivot(index='No', columns='Date', values='Shift')
 
     # Add dates header to the shift table
@@ -98,7 +120,7 @@ def make_shift_table(atoms):
     # self.print_shift_table(df_tbl)  
 
     # ------------------------------------------------------------
-    # Make a table of the number of assigned shifts
+    # Make the table of the number of assigned shifts (horizontal)
     cur_df = df[(0 <= df['Date']) & (df['Date'] <= width)]  # current month
     # print("1"); print(cur_df)
     # Extend the dataframe to count the number of assigned shift groups
@@ -117,11 +139,47 @@ def make_shift_table(atoms):
     df_shifts = gdf
 
     # ------------------------------------------------------------
-    # Make a penalty mapping
+    # Make the table of the number of assigned staffs (vertical)
+    gdf = pd.DataFrame(staff_groups)
+    #print(gdf)
+    # Add staff group to df
+    mdf = pd.merge(df, gdf, on='No', how='outer')    
+    # Add staff point to df
+    sdf = pd.DataFrame(staffs, columns=['No', 'Name', 'Job', 'ID', 'Point'])
+    sdf = sdf[["No", "Point"]]
+    mdf = pd.merge(mdf, sdf, on='No', how='outer')    
+    # print(mdf)
+    # Extend the dataframe to count the number of assigned shift groups
+    shift_groups = [vtype['ShiftGroup'] for vtype in vtypes if '+' in vtype['ShiftGroup']]
+    shift_groups = list(dict.fromkeys(shift_groups))
+    for shift_group in shift_groups:
+        for shift in shift_group.split("+"):
+            tmp_df = mdf[mdf['Shift'] == shift].copy()
+            tmp_df['Shift'] = shift_group 
+            mdf = pd.concat([mdf, tmp_df])
+    #print(mdf)
+    mdf = mdf.groupby(['Date', 'StaffGroup', 'Shift']).agg({'Shift': 'count', 'Point': 'sum'})
+    mdf = mdf.rename(columns={'Shift': 'Staffs', 'Point': 'Points'})
+    mdf = mdf.stack().unstack('Date')
+    #print(mdf)
+    # Remove unconstrained rows
+    idx = [(vtype['StaffGroup'], vtype['ShiftGroup'], vtype['ObjType']) for vtype in vtypes]
+    mdf = mdf.reindex(idx)
+    mdf = mdf.fillna(0).astype(int)  # Convert to int
+    # Add days if not exist
+    for date in range(0, width):
+        if not (date in mdf.columns):
+            mdf[date] = 0
+    mdf = mdf.sort_index(axis='columns')            
+    df_staffs = mdf.rename(index={'Staffs': '#S', 'Points': '#P'})
+    #print(df_staffs)
+
+    # ------------------------------------------------------------
+    # Make the penalty mapping
     penalty_map = make_penalty_map(penalties)
     #print(f'penalty_map = {penalty_map}')
 
-    return ShiftTable(df_tbl, header, width, df_shifts, penalties, penalty_map)  
+    return ShiftTable(df_tbl, header, width, df_shifts, df_staffs, penalties, penalty_map)  
 
 def make_penalty_map(penalties):
     map = {}
@@ -139,6 +197,12 @@ def make_penalty_map(penalties):
             staff = args[0].number
             shift_group = args[1].string
             add(staff, shift_group, p)
+        elif cause.match("staff_lb", 3) or cause.match("staff_ub", 3):
+            staff_group = args[0].string
+            shift_group = args[1].string
+            day = args[2].number
+            row = (staff_group, shift_group, "#S")
+            add(row, day, p)
     
     return map
 
@@ -167,7 +231,7 @@ def print_shift_table(table, color=True):
                 c = Style.DIM
             else:
                 c = Fore.MAGENTA
-        return c + f"{str(val):<2}" + Style.RESET_ALL
+        return c + str(val).center(2) + Style.RESET_ALL
     
     df = table.df.fillna("  ")
     col_headers = [[""] + list(col) for col in zip(*df.columns.tolist())]
@@ -191,34 +255,66 @@ def print_shift_table(table, color=True):
             c = Back.RED
         return c + str(val).center(width) + Style.RESET_ALL
 
-    # Make a right table of the number of assgned shifts
-    col_headers = list(table.df_shift.columns)
+    # Make the right table of the number of assgned shifts
+    col_headers = list(table.df_shifts.columns)
     col_width = list(map(len, col_headers))
     col_width = list(map(lambda n: max(2, n), col_width))
     right_width = sum(col_width) + len(col_headers)
-    data_rows = table.df_shift.values.tolist()
+    data_rows = table.df_shifts.values.tolist()
     right_table = [col_headers] + data_rows
     right_table = [
         [format_right_cell(value, row_idx, col_headers[col_idx], col_width[col_idx]) for col_idx, value in enumerate(row)]
         for row_idx, row in enumerate(right_table)
     ]
 
+    def format_bottom_cell(val, idx, day):
+        c = ""
+        if has_penalty(idx, day):
+            c = Back.RED
+        return c + str(val).center(2) + Style.RESET_ALL
+
+    # Make the bottom table of the number of assgned staffs
+    idx_headers = list(table.df_staffs.index)
+    idx_width = [max(len(tup[i]) for tup in idx_headers) for i in range(3)]
+    botom_idx_width = sum(idx_width) + len(idx_width) - 1
+    botom_padding = main_padding = 0
+    if botom_idx_width < 25:   # 25 = 2 + 2 + 7 * 3 
+        botom_padding = 25 - botom_idx_width
+    else:
+        main_padding = botom_idx_width - 25
+    bottom_table = table.df_staffs.values.tolist()
+    bottom_table = [
+        [format_bottom_cell(value, idx_headers[row_idx], col_idx) for col_idx, value in enumerate(row)]
+        for row_idx, row in enumerate(bottom_table)
+    ]
+
     if table.title:
         print(table.title)
+    hrule = "-" * (main_padding + 3 * (table.width + 14 + 4) + right_width) # 14 days and 3 separators
     for idx, row in enumerate(main_table):
-        # main table
+        # Main table
         if idx == 3:
-            print("-" * (3 * (table.width + 14 + 4) + right_width)) # 14 days and 3 separators
-        line  = row[0] + " | "
+            print(hrule)
+        line = ' ' * main_padding
+        line += row[0] + " | "
         line += ' '.join(row[1:8]) + " | "
         line += ' '.join(row[8:table.width + 8]) + " | "
         line += ' '.join(row[table.width + 8:]) + " | "
-        # right table
+        # Right table
         if 1 == idx:
             line += '# assigned shifts'.center(right_width)
         elif 2 <= idx:
-            line += ' '.join(right_table[idx - 2])
-        
+            line += ' '.join(right_table[idx - 2])  
+        print(line)
+    print(hrule)
+    # Bottom table
+    for idx, row in enumerate(bottom_table):
+        line = ' ' * botom_padding
+        header = idx_headers[idx]
+        header = [header[i].ljust(idx_width[i]) for i in range(3)]
+        header = ' '.join(header)
+        line += header + " | "
+        line += ' '.join(row) + " |"
         print(line)
 
     # Penalties    
