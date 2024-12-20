@@ -21,7 +21,7 @@ def signal_handler(sig, frame):
         condition.notify_all()
 
 class NSPSolver:
-    def __init__(self, files=None, output=None, clingo_options=None, verbose=0, show_model=None, show_table=False):
+    def __init__(self, files=None, output=None, clingo_options=None, show_model=None, show_table=False, verbose=0, stats=0):
         """
         Initialize the NSPSolver
         :param files: List of logic program files
@@ -31,9 +31,10 @@ class NSPSolver:
         self.files = files if files else []
         self.output = output
         self.clingo_options = clingo_options if clingo_options else []
-        self.verbose = verbose
         self.show_model = show_model
         self.show_table = show_table
+        self.verbose = verbose
+        self.stats = stats
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
 
@@ -76,7 +77,7 @@ class NSPSolver:
         print(f"Solve Result: {result}")
 
         # Print statistics if solving was successful
-        if self.verbose > 0:
+        if self.stats:
             self.print_statistics()
 
         return result
@@ -99,7 +100,7 @@ class NSPSolver:
             print("\n".join(str(atom) for atom in model.symbols(atoms=True)))
 
         if self.show_table:
-            table = make_shift_table(model.symbols(shown=True))
+            table = make_shift_table(model.symbols(atoms=True))
             print_shift_table(table)
 
         if self.output:
@@ -117,28 +118,30 @@ class NSPSolver:
             condition.notify_all()
 
     def print_statistics(self, d=None, indent=0):
+
+        def try_to_int(n):
+            # Check if the value is a float with .0 and convert it to an integer
+            if isinstance(n, float) and n.is_integer():
+                return int(n) 
+            return n
+
         if d == None:
             d = self.control.statistics
-            print("[Stats]")
+            print("Stats ------------------------------------------------------")
         for key, value in d.items():
             if isinstance(value, dict):  # If the value is a dictionary, process recursively
+                if self.stats <= 1 and len(value) == 0:
+                    continue
                 print(" " * indent + f"{key}:")
                 self.print_statistics(value, indent + 2)
             elif isinstance(value, list) and len(value) > 0:  # If the value is a list, format each item
-                print(" " * indent + f"{key}: [")
-                for item in value:
-                    if isinstance(item, dict):
-                        self.print_statistics(item, indent + 2)
-                    else:
-                        print(" " * (indent + 2) + str(item))
-                print(" " * indent + "]")
+                value = list(map(try_to_int, value))
+                print(" " * indent + f"{key}: {value}")
             else:  # For other data types, print the key and value on the same line
-                # Check if the value is a float with .0 and convert it to an integer
-                if isinstance(value, float) and value.is_integer():
-                    value = int(value)
-                if self.verbose <= 1 and isinstance(value, list) and len(value) == 0:
+                value = try_to_int(value)
+                if self.stats <= 1 and isinstance(value, list) and len(value) == 0:
                     continue
-                if self.verbose <= 1 and value == 0:
+                if self.stats <= 1 and value == 0:
                     continue
                 print(" " * indent + f"{key}: {value}")
 
@@ -161,7 +164,6 @@ class NSPContext:
         m = m.number
         return clingo.Number(n if n > m else m)
 
-# Main function to handle command-line arguments
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="NSPSolver")
@@ -170,6 +172,10 @@ def main():
         nargs="+",
         help="Logic program files (one or more)"
     )
+    parser.add_argument("-m", action="store_true", help="Display only atoms specified by #show.")
+    parser.add_argument("-M", action="store_true", help="Display all atoms.")    
+    parser.add_argument("-t", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
+    parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")
     parser.add_argument(
         "-v", "--verbose",
         nargs="?",  # Optional argument with a default value if specified without a value
@@ -178,11 +184,14 @@ def main():
         default=1,  # Default to 0 if -v is not specified
         help="Set verbosity level (0: silent, 1: basic, 2: detailed)"
     )
-    parser.add_argument("-m", action="store_true", help="Display only atoms specified by #show.")
-    parser.add_argument("-M", action="store_true", help="Display all atoms.")
-    parser.add_argument("-t", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
-    parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")
-
+    parser.add_argument(
+        "-s", "--stats",
+        nargs="?",  # Optional argument with a default value if specified without a value
+        const=1,  # Default to 1 if -s is specified without a value
+        type=int,  # Ensure the verbose level is an integer
+        default=0,  # Default to 0 if -s is not specified
+        help="Set statistics level (0: silent, 1: basic, 2: detailed)"
+    )    
     # Pass unrecognized arguments to Clingo
     args, unknown_args = parser.parse_known_args()
 
@@ -198,7 +207,15 @@ def main():
 
 
     # Create an NSPSolver instance
-    solver = NSPSolver(files=args.files, output=args.output, clingo_options=unknown_args, verbose=args.verbose, show_model=show_model, show_table=args.t)
+    solver = NSPSolver(
+        files=args.files, 
+        output=args.output, 
+        clingo_options=unknown_args, 
+        show_model=show_model, 
+        show_table=args.t,
+        verbose=args.verbose, 
+        stats=args.stats,
+    )
     
     # Load logic programs and solve
     solver.load_programs()

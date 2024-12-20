@@ -36,9 +36,9 @@ ext_assigned(N, D, S) :- staff(N), next_date(D), shift_data(N, D, S).
 %----------------------------------------------------------------------
 
 % Width of the shift table (number of days)
-table_width(28).
+table_width(X) :- X = { date(_,_) }.
 % Number of weekly rest
-default_weekly_rests(8).
+default_weekly_rests(X) :- table_width(W), X = (W / 7) * 2.
 % Number of public holidays
 num_public_holidays(X) :- X = { public_holiday(D) : date(D) }.
 % Weekdays

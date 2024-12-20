@@ -150,8 +150,8 @@ location(C, L) :- penalty(C), C = staff_lb(NG, SG, D), L = num_staffs(NG, SG, D)
 location(C, L) :- penalty(C), C = staff_ub(NG, SG, D), L = num_staffs(NG, SG, D).
 location(C, L) :- penalty(C), C = point_lb(NG, SG, D), L = num_points(NG, SG, D).
 location(C, L) :- penalty(C), C = point_ub(NG, SG, D), L = num_points(NG, SG, D).
-location(C, L) :- penalty(C), C = shift_lb(N, SG), L = num_shift(N, SG).
-location(C, L) :- penalty(C), C = shift_ub(N, SG), L = num_shift(N, SG).
+location(C, L) :- penalty(C), C = shift_lb(N, SG), L = num_shifts(N, SG).
+location(C, L) :- penalty(C), C = shift_ub(N, SG), L = num_shifts(N, SG).
 
 % TODO
 priority(CAUSE,1) :- violation(soft, CAUSE, _, _).

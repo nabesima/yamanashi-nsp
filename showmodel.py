@@ -5,14 +5,17 @@ import os
 import sys
 import time
 import clingo
-from colorama import Fore, Style
+from colorama import Back, Fore, Style
 import pandas as pd
 
 class ShiftTable:
-    def __init__(self, df, title=None, penalties=[]):
+    def __init__(self, df, title, width, df_shift, penalties, penalty_map):
         self.df = df
         self.title = title
+        self.width = width
+        self.df_shift = df_shift
         self.penalties = penalties
+        self.penalty_map = penalty_map
 
 class Penalty:
     def __init__(self, type, cause, location, limit, value, wegiht, priority):
@@ -29,10 +32,13 @@ def make_shift_table(atoms):
     assigneds = []
     dates = []
     penalties = []
+    htypes = []
     for atom in atoms:   
         args = atom.arguments            
         if atom.match("header", 1):
             header = args[0].string
+        elif atom.match("table_width", 1):
+            width = args[0].number
         elif atom.match("ext_assigned", 3):
             staff = args[0].number
             date  = args[1].number
@@ -61,7 +67,11 @@ def make_shift_table(atoms):
                 'P': p,
                 'W': w,
             })
+        elif atom.match("horizontal_constraint_type", 1):
+            shift_group  = args[0].string
+            htypes.append(shift_group)
 
+    # Shift assignments
     df = pd.DataFrame(assigneds)
 
     # Checking duplicated entries
@@ -71,25 +81,70 @@ def make_shift_table(atoms):
         print(duplicates)
         print("=========================================")
 
+    # ------------------------------------------------------------
+    # Make a shift table
     df_tbl = df.pivot(index='No', columns='Date', values='Shift')
 
-    # Add dates
+    # Add dates header to the shift table
     dates = sorted(dates)
+    # Add missing dates
+    for date in dates:
+        if not date[0] in df_tbl.columns:
+            df_tbl[date[0]] = None
+    df_tbl = df_tbl.sort_index(axis='columns')           
     df_tbl.columns = pd.MultiIndex.from_tuples(dates)   
 
     # print(df_tbl)
     # self.print_shift_table(df_tbl)  
-    return ShiftTable(df_tbl, header, penalties)  
+
+    # ------------------------------------------------------------
+    # Make a table of the number of assigned shifts
+    cur_df = df[(0 <= df['Date']) & (df['Date'] <= width)]  # current month
+    # print("1"); print(cur_df)
+    # Extend the dataframe to count the number of assigned shift groups
+    shift_groups = [sg for sg in htypes if '+' in sg]
+    for shift_group in shift_groups:
+        for shift in shift_group.split("+"):
+            tmp_df = cur_df[cur_df['Shift'] == shift].copy()
+            tmp_df['Shift'] = shift_group
+            cur_df = pd.concat([cur_df, tmp_df])
+    # print("(2)"); print(cur_df)    
+    gdf = cur_df.groupby(['No', 'Shift']).count().reset_index() # Count assigned shift groups
+    gdf = gdf.pivot(index='No', columns='Shift', values='Date') # Convert to the table
+    gdf = gdf.reindex(columns=htypes) # Change the column order
+    gdf = gdf.fillna(0).astype(int) # Convert to int
+    #print(gdf)
+    df_shifts = gdf
+
+    # ------------------------------------------------------------
+    # Make a penalty mapping
+    penalty_map = make_penalty_map(penalties)
+    #print(f'penalty_map = {penalty_map}')
+
+    return ShiftTable(df_tbl, header, width, df_shifts, penalties, penalty_map)  
+
+def make_penalty_map(penalties):
+    map = {}
+    def add(row, col, p):
+        if row not in map:
+            map[row] = {}
+        if col not in map[row]:
+            map[row][col] = []
+        map[row][col].append(p)
+
+    for p in penalties:
+        cause = p['Cause']
+        args = cause.arguments
+        if cause.match("shift_lb", 2) or cause.match("shift_ub", 2):
+            staff = args[0].number
+            shift_group = args[1].string
+            add(staff, shift_group, p)
+    
+    return map
 
 def print_shift_table(table, color=True):
     
-    df = table.df.fillna("  ")
-    
-    col_headers = [[""] + list(col) for col in zip(*df.columns.tolist())]
-    data_rows = [[index] + row.tolist() for index, row in zip(df.index, df.values)]
-    full_table = col_headers + data_rows
-    
-    def format_cell(val, row, col):
+    def format_main_cell(val, row, col):
         if not color:
             return f"{str(val):<2}"
         w = col_headers[2][col]
@@ -113,30 +168,70 @@ def print_shift_table(table, color=True):
             else:
                 c = Fore.MAGENTA
         return c + f"{str(val):<2}" + Style.RESET_ALL
+    
+    df = table.df.fillna("  ")
+    col_headers = [[""] + list(col) for col in zip(*df.columns.tolist())]
+    data_rows = [[index] + row.tolist() for index, row in zip(df.index, df.values)]
+    main_table = col_headers + data_rows
 
     # Formatting cells
-    full_table = [
-        [format_cell(value, row_idx, col_idx) for col_idx, value in enumerate(row)]
-        for row_idx, row in enumerate(full_table)
+    main_table = [
+        [format_main_cell(value, row_idx, col_idx) for col_idx, value in enumerate(row)]
+        for row_idx, row in enumerate(main_table)
+    ]
+
+    def has_penalty(row, col):
+        if row in table.penalty_map:
+            return col in table.penalty_map[row]
+        return False
+
+    def format_right_cell(val, row, shift_group, width):
+        c = ""
+        if has_penalty(row, shift_group):
+            c = Back.RED
+        return c + str(val).center(width) + Style.RESET_ALL
+
+    # Make a right table of the number of assgned shifts
+    col_headers = list(table.df_shift.columns)
+    col_width = list(map(len, col_headers))
+    col_width = list(map(lambda n: max(2, n), col_width))
+    right_width = sum(col_width) + len(col_headers)
+    data_rows = table.df_shift.values.tolist()
+    right_table = [col_headers] + data_rows
+    right_table = [
+        [format_right_cell(value, row_idx, col_headers[col_idx], col_width[col_idx]) for col_idx, value in enumerate(row)]
+        for row_idx, row in enumerate(right_table)
     ]
 
     if table.title:
         print(table.title)
-    for idx, row in enumerate(full_table):
+    for idx, row in enumerate(main_table):
+        # main table
         if idx == 3:
-            print("-" * 134)
+            print("-" * (3 * (table.width + 14 + 4) + right_width)) # 14 days and 3 separators
         line  = row[0] + " | "
         line += ' '.join(row[1:8]) + " | "
-        line += ' '.join(row[8:36]) + " | "
-        line += ' '.join(row[36:])
+        line += ' '.join(row[8:table.width + 8]) + " | "
+        line += ' '.join(row[table.width + 8:]) + " | "
+        # right table
+        if 1 == idx:
+            line += '# assigned shifts'.center(right_width)
+        elif 2 <= idx:
+            line += ' '.join(right_table[idx - 2])
+        
         print(line)
 
     # Penalties    
-    pf = pd.DataFrame(table.penalties)
-    pf = pf.sort_values(['P', 'W', 'Type', 'Cause'], ascending=[False, False, True, True], ignore_index=True)
-    pf.index += 1
-    print("Penalties:")
-    print(pf[['P', 'W', 'Type', 'Cause', 'Lim', 'Val']].to_string())
+    if len(table.penalties) > 0:
+        pf = pd.DataFrame(table.penalties)
+        pf = pf.sort_values(['P', 'W', 'Type', 'Cause'], ascending=[False, False, True, True], ignore_index=True)
+        pf.index += 1
+        print("Penalties:")
+        print(pf[['P', 'W', 'Type', 'Cause', 'Lim', 'Val']].to_string())
+    else:
+        print("Penalties:")
+        print("  None")
+    print()
 
 def read_model(file, color):
     try:
