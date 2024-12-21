@@ -2,3 +2,5 @@
 __pycache__
 found-model.lp
 tmp-*.xlsx
+param-source
+TODO.md
