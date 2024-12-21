@@ -324,7 +324,12 @@ def main():
     parser.add_argument("-n", type=int, default=6, help="Number of nurses (default: 6)")
     parser.add_argument("-d", type=int, default=7, help="Number of days (default: 7)")
     parser.add_argument("-s", type=str, default="2025-04-01", help="Start date in YYYY-MM-DD format (default: 2025-04-01)")
+    parser.add_argument("-r", type=int, default=None, help="Set the random seed (default: None)")
     args = parser.parse_args()
+
+    if args.r != None:
+        fake.seed_instance(args.r)
+        random.seed(args.r)
 
     # Generate a NSP instance
     nsp_instance = NSP()
