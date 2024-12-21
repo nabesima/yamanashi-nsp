@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+import datetime
 import fcntl
 import math
 import signal
+import socket
 import threading
 import time
 import clingo
@@ -38,9 +40,6 @@ class NSPSolver:
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
 
-        if self.verbose > 0:
-            print(f"clingo options: {' '.join(self.clingo_options)}")
-
     def load_programs(self):
         """
         Load logic programs from the specified files
@@ -74,11 +73,41 @@ class NSPSolver:
                 handle.cancel()  # Cancel the solving process if a stop signal was set
             result = handle.get()  # Retrieve the final solving result
 
-        print(f"Solve Result: {result}")
+        def get_cost():
+            s = self.control.statistics['summary']
+            if len(s['costs']) == 0:
+                return None
+            return " ".join([str(int(c)) for c in self.control.statistics['summary']['costs']])
 
-        # Print statistics if solving was successful
+        # TODO
+        # Optimization: 472
+        # OPTIMUM FOUND
+        if result.unsatisfiable:
+            print("UNSATISFIABLE")
+        elif result.unknown:
+            print("UNKNOWN")
+        elif result.satisfiable:
+            if get_cost():
+                print(f"Optimization: {get_cost()}")
+            if result.exhausted:
+                print("OPTIMUM FOUND")
+            else:
+                print("SATISFIABLE")
+        print()
+        #print(f"Solve Result: {dir(result)}")
+
+        # Print statistics
         if self.stats:
             self.print_statistics()
+            print()
+        if self.verbose > 0:
+            s = self.control.statistics['summary']
+            print(f'Models       : {int(s['models']['enumerated'])}')
+            if get_cost() != None:
+                print(f'  Optimum    : {"Yes" if result.exhausted else "No"}')
+                print(f'Optimization : {get_cost()}')
+            print(f'Time         : {s['times']['total']:.3f}s')
+            print(f'CPU Time     : {s['times']['cpu']:.3f}s')
 
         return result
 
@@ -87,7 +116,6 @@ class NSPSolver:
         Callback method triggered when an answer set is found
         """
         elapsed = time.time() - self.start_time
-        self.model = model
 
         header = f"Answer: {model.number}, Cost: {' '.join(map(str, model.cost))}, Elapsed: {elapsed:.1f}s"
         print(header)
@@ -101,7 +129,10 @@ class NSPSolver:
 
         if self.show_table:
             table = make_shift_table(model.symbols(atoms=True))
-            print_shift_table(table)
+            if table:
+                print_shift_table(table)
+            else:
+                print("Error: model contains no shift assignments (ext_assigned/3).")
 
         if self.output:
             atoms = "\n".join([str(atom) + "." for atom in model.symbols(atoms=True)])            
@@ -175,7 +206,7 @@ def main():
     parser.add_argument("-m", action="store_true", help="Display only atoms specified by #show.")
     parser.add_argument("-M", action="store_true", help="Display all atoms.")    
     parser.add_argument("-t", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
-    parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")
+    parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")    
     parser.add_argument(
         "-v", "--verbose",
         nargs="?",  # Optional argument with a default value if specified without a value
@@ -205,6 +236,13 @@ def main():
     # シグナルハンドラを登録
     signal.signal(signal.SIGINT, signal_handler)
 
+    if args.verbose > 0:
+        print(f'Host: {socket.getfqdn()}')
+        print(f'Date: {datetime.datetime.now()}')
+        cmd = ["clingo"]
+        cmd += args.files
+        cmd += unknown_args
+        print(f'Command: {" ".join(cmd)}')
 
     # Create an NSPSolver instance
     solver = NSPSolver(

@@ -92,7 +92,9 @@ def make_shift_table(atoms):
             obj_type = args[2].string
             vtypes.append({'StaffGroup': staff_group, 'ShiftGroup': shift_group, 'ObjType': obj_type})
 
-
+    if len(assigneds) == 0:
+        return None
+    
     # Shift assignments
     df = pd.DataFrame(assigneds)
 
@@ -102,6 +104,8 @@ def make_shift_table(atoms):
         print("=== Error: Duplicate Entries Detected ===")
         print(duplicates)
         print("=========================================")
+
+
 
     # ------------------------------------------------------------
     # Make the shift table
@@ -343,7 +347,11 @@ def read_model(file, color):
     
     atoms = parse_model(content)
     table = make_shift_table(atoms)
-    print_shift_table(table, color)
+    if table:        
+        print_shift_table(table, color)
+    else:
+        print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
+
 
 def monitor_file(file, interval, color):
     """Monitor the file for changes and reload when updated."""
@@ -372,7 +380,7 @@ def parse_model(content):
     return atoms
 
 def main():
-    parser = argparse.ArgumentParser(description="Read a model from a file or standard input.")
+    parser = argparse.ArgumentParser(description="Read a model from a file and display the shift table.")
     parser.add_argument("file", nargs="?", default="found-model.lp", help="Model file to read. Defaults to 'found-model.lp'.")
     parser.add_argument("-m", "--monochrome", action="store_true", help="Display output in monochrome (no colors).")
     parser.add_argument("-f", "--follow", type=float, nargs="?", const=1.0, help="Monitor the file for changes and reload when updated. Specify interval in seconds (default: 1 second).")
