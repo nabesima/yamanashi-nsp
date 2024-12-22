@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import random
 from sys import stdout
-from typing import List
+from typing import List, Union
 from faker import Faker
 import jpholiday
 from defparams import DEF_STAFF_BOUNDS
@@ -43,12 +43,15 @@ class Dates:
     def __post_init__(self):
         self.start_date = datetime.strptime(self.str_start_date, "%Y-%m-%d")
 
-    def choice(self):
+    def choice(self) -> datetime:
         d = random.randrange(0, self.width)
         return self.start_date + timedelta(days=d)
 
-    def is_holiday(self, d: int):
-        date = self.start_date + timedelta(days=d)
+    def is_holiday(self, d: Union[int, datetime]):
+        if isinstance(d, int):
+            date = self.start_date + timedelta(days=d)
+        elif isinstance(d, datetime):
+            date = d
         return jpholiday.is_holiday(date)
 
     def to_asp(self, out):
@@ -347,6 +350,9 @@ class NSP:
                 staff = random.choice(self.staffs)
                 date = self.dates.choice()
                 shift = random.choice(req_shifts)
+                # Change WR to PH if the date is holiday
+                if shift == "WR" and self.dates.is_holiday(date):
+                    shift = "PH"
                 # Handle short evening or short night shifts as negative requests
                 pos = shift != "SE" and shift != "SN"
                 if self.add_staff_request(pos, staff, date, shift):
