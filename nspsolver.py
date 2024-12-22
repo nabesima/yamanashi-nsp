@@ -81,9 +81,6 @@ class NSPSolver:
                 return None
             return " ".join([str(int(c)) for c in self.control.statistics['summary']['costs']])
 
-        # TODO
-        # Optimization: 472
-        # OPTIMUM FOUND
         if result.unsatisfiable:
             print("UNSATISFIABLE")
         elif result.unknown:
@@ -147,6 +144,7 @@ class NSPSolver:
                     fcntl.flock(f, fcntl.LOCK_UN)
 
     def on_finish(self, result):
+        stop_event.set()
         with condition:
             condition.notify_all()
 

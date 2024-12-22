@@ -5,6 +5,9 @@
 % Work shift
 LB { assigned(N, D) : workable_date(N, D) } UB :-
     staff(N), work_days_bounds(N, LB, UB), not soft_all.
+% violation(hard, num_work_days(N)) :-
+%     staff(N), work_days_bounds(N, LB, UB),
+%     not LB { assigned(N, D) : workable_date(N, D) }.
 
 % assigned/2 has exactly one work shift
 1 { assigned(N, D, S) : work_shift(S) } 1 :- assigned(N, D).
