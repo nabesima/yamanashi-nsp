@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from collections import defaultdict
 from dataclasses import dataclass
 import fcntl
 import os
@@ -10,7 +11,7 @@ from colorama import Back, Fore, Style
 import pandas as pd
 
 class ShiftTable:
-    def __init__(self, df, title, width, df_shifts, df_staffs, penalties, penalty_map):
+    def __init__(self, df, title, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map):
         self.df = df
         self.title = title
         self.width = width
@@ -18,16 +19,22 @@ class ShiftTable:
         self.df_staffs = df_staffs
         self.penalties = penalties
         self.penalty_map = penalty_map
+        self.assigned_map = assigned_map
+        self.request_map = request_map
 
 class Penalty:
-    def __init__(self, type, cause, location, limit, value, wegiht, priority):
+    def __init__(self, type, cause, location, request, result, wegiht, priority):
         self.type = type
         self.cause = cause
         self.location = location
-        self.limit = limit
-        self.value = value
+        self.request = request
+        self.result = result
         self.weight = wegiht
         self.priority = priority
+
+# Create a recursive defaultdict
+def recursive_defaultdict():
+    return defaultdict(recursive_defaultdict)
 
 def make_shift_table(atoms):
     header = None
@@ -36,10 +43,11 @@ def make_shift_table(atoms):
     staffs = []
     staff_groups = []
     penalties = []
+    requests = []
     htypes = []
     vtypes = []
-    for atom in atoms:   
-        args = atom.arguments            
+    for atom in atoms:
+        args = atom.arguments
         if atom.match("header", 1):
             header = args[0].string
         elif atom.match("table_width", 1):
@@ -65,24 +73,25 @@ def make_shift_table(atoms):
             gname = args[0].string
             staff = args[1].number
             staff_groups.append({'StaffGroup': gname, 'No': staff})
-        elif atom.match("penalty", 7):
+        elif atom.match("penalty", 6):
             ctype = args[0]
             cause = args[1]
-            loc   = args[2]
-            lim   = args[3].number
-            val   = args[4].number
-            w     = args[5].number
-            p     = args[6].number
-            # penalties.append(Penalty(ctype, cause, loc, lim, val, w, p))
+            req   = args[2].number
+            res   = args[3].number
+            w     = args[4].number
+            p     = args[5].number
             penalties.append({
                 'Type': ctype,
                 'Cause': cause,
-                'Loc': loc,
-                'Lim': lim,
-                'Val': val,                
+                'Req': req,
+                'Res': res,
                 'P': p,
                 'W': w,
             })
+        elif atom.match("pos_request", 3):
+            requests.append({'Type': 'pos', 'No': args[0].number, 'Date': args[1].number, 'Shift': args[2].string})
+        elif atom.match("neg_request", 3):
+            requests.append({'Type': 'neg', 'No': args[0].number, 'Date': args[1].number, 'Shift': args[2].string})
         elif atom.match("horizontal_constraint_type", 1):
             shift_group  = args[0].string
             htypes.append(shift_group)
@@ -94,7 +103,7 @@ def make_shift_table(atoms):
 
     if len(assigneds) == 0:
         return None
-    
+
     # Shift assignments
     df = pd.DataFrame(assigneds)
 
@@ -104,8 +113,6 @@ def make_shift_table(atoms):
         print("=== Error: Duplicate Entries Detected ===")
         print(duplicates)
         print("=========================================")
-
-
 
     # ------------------------------------------------------------
     # Make the shift table
@@ -117,11 +124,11 @@ def make_shift_table(atoms):
     for date in dates:
         if not date[0] in df_tbl.columns:
             df_tbl[date[0]] = None
-    df_tbl = df_tbl.sort_index(axis='columns')           
-    df_tbl.columns = pd.MultiIndex.from_tuples(dates)   
+    df_tbl = df_tbl.sort_index(axis='columns')
+    df_tbl.columns = pd.MultiIndex.from_tuples(dates)
 
     # print(df_tbl)
-    # self.print_shift_table(df_tbl)  
+    # self.print_shift_table(df_tbl)
 
     # ------------------------------------------------------------
     # Make the table of the number of assigned shifts (horizontal)
@@ -134,7 +141,7 @@ def make_shift_table(atoms):
             tmp_df = cur_df[cur_df['Shift'] == shift].copy()
             tmp_df['Shift'] = shift_group
             cur_df = pd.concat([cur_df, tmp_df])
-    # print("(2)"); print(cur_df)    
+    # print("(2)"); print(cur_df)
     gdf = cur_df.groupby(['No', 'Shift']).count().reset_index() # Count assigned shift groups
     gdf = gdf.pivot(index='No', columns='Shift', values='Date') # Convert to the table
     gdf = gdf.reindex(columns=htypes) # Change the column order
@@ -147,11 +154,11 @@ def make_shift_table(atoms):
     gdf = pd.DataFrame(staff_groups)
     #print(gdf)
     # Add staff group to df
-    mdf = pd.merge(df, gdf, on='No', how='outer')    
+    mdf = pd.merge(df, gdf, on='No', how='outer')
     # Add staff point to df
     sdf = pd.DataFrame(staffs, columns=['No', 'Name', 'Job', 'ID', 'Point'])
     sdf = sdf[["No", "Point"]]
-    mdf = pd.merge(mdf, sdf, on='No', how='outer')    
+    mdf = pd.merge(mdf, sdf, on='No', how='outer')
     # print(mdf)
     # Extend the dataframe to count the number of assigned shift groups
     shift_groups = [vtype['ShiftGroup'] for vtype in vtypes if '+' in vtype['ShiftGroup']]
@@ -159,7 +166,7 @@ def make_shift_table(atoms):
     for shift_group in shift_groups:
         for shift in shift_group.split("+"):
             tmp_df = mdf[mdf['Shift'] == shift].copy()
-            tmp_df['Shift'] = shift_group 
+            tmp_df['Shift'] = shift_group
             mdf = pd.concat([mdf, tmp_df])
     #print(mdf)
     mdf = mdf.groupby(['Date', 'StaffGroup', 'Shift']).agg({'Shift': 'count', 'Point': 'sum'})
@@ -174,7 +181,7 @@ def make_shift_table(atoms):
     for date in range(0, width):
         if not (date in mdf.columns):
             mdf[date] = 0
-    mdf = mdf.sort_index(axis='columns')            
+    mdf = mdf.sort_index(axis='columns')
     df_staffs = mdf.rename(index={'Staffs': '#S', 'Points': '#P'})
     #print(df_staffs)
 
@@ -183,7 +190,19 @@ def make_shift_table(atoms):
     penalty_map = make_penalty_map(penalties)
     #print(f'penalty_map = {penalty_map}')
 
-    return ShiftTable(df_tbl, header, width, df_shifts, df_staffs, penalties, penalty_map)  
+    # ------------------------------------------------------------
+    # Make the assignment mapping for the explanation of penalties
+    assigned_map = recursive_defaultdict()
+    for a in assigneds:
+        assigned_map[a["No"]][a["Date"]] = a["Shift"]
+
+    # ------------------------------------------------------------
+    # Make the request mapping for the explanation of penalties
+    request_map = recursive_defaultdict()
+    for r in requests:
+        request_map[r["No"]][r["Date"]][r["Type"]].setdefault("Shift", []).append(a["Shift"])
+
+    return ShiftTable(df_tbl, header, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map)
 
 def make_penalty_map(penalties):
     map = {}
@@ -207,11 +226,22 @@ def make_penalty_map(penalties):
             day = args[2].number
             row = (staff_group, shift_group, "#S")
             add(row, day, p)
-    
+        elif cause.match("consecutive_work_days", 2) or cause.match("pos_request", 2) or cause.match("neg_request", 2):
+            staff = args[0].number
+            day = args[1].number
+            add(staff, day, p)
+        else:
+            raise ValueError(f'Unknown penalty cause: {cause}')
+
     return map
 
 def print_shift_table(table, color=True):
-    
+
+    def has_penalty(row, col):
+        if row in table.penalty_map:
+            return col in table.penalty_map[row]
+        return False
+
     def format_main_cell(val, row, col):
         if not color:
             return f"{str(val):<2}"
@@ -235,8 +265,10 @@ def print_shift_table(table, color=True):
                 c = Style.DIM
             else:
                 c = Fore.MAGENTA
+        if has_penalty(row - 2, col - 8):
+            c = Back.RED
         return c + str(val).center(2) + Style.RESET_ALL
-    
+
     df = table.df.fillna("  ")
     col_headers = [[""] + list(col) for col in zip(*df.columns.tolist())]
     data_rows = [[index] + row.tolist() for index, row in zip(df.index, df.values)]
@@ -247,11 +279,6 @@ def print_shift_table(table, color=True):
         [format_main_cell(value, row_idx, col_idx) for col_idx, value in enumerate(row)]
         for row_idx, row in enumerate(main_table)
     ]
-
-    def has_penalty(row, col):
-        if row in table.penalty_map:
-            return col in table.penalty_map[row]
-        return False
 
     def format_right_cell(val, row, shift_group, width):
         c = ""
@@ -282,7 +309,7 @@ def print_shift_table(table, color=True):
     idx_width = [max(len(tup[i]) for tup in idx_headers) for i in range(3)]
     botom_idx_width = sum(idx_width) + len(idx_width) - 1
     botom_padding = main_padding = 0
-    if botom_idx_width < 25:   # 25 = 2 + 2 + 7 * 3 
+    if botom_idx_width < 25:   # 25 = 2 + 2 + 7 * 3
         botom_padding = 25 - botom_idx_width
     else:
         main_padding = botom_idx_width - 25
@@ -308,7 +335,7 @@ def print_shift_table(table, color=True):
         if 1 == idx:
             line += '# assigned shifts'.center(right_width)
         elif 2 <= idx:
-            line += ' '.join(right_table[idx - 2])  
+            line += ' '.join(right_table[idx - 2])
         print(line)
     print(hrule)
     # Bottom table
@@ -321,13 +348,24 @@ def print_shift_table(table, color=True):
         line += ' '.join(row) + " |"
         print(line)
 
-    # Penalties    
+    # Penalties
     if len(table.penalties) > 0:
+        for p in table.penalties:
+            c = p['Cause']
+            if c.match("pos_request", 2):
+                args = c.arguments
+                staff = args[0].number
+                date = args[1].number
+                p['Req'] = ','.join(table.request_map[staff][date]['pos']['Shift'])
+                p['Res'] = table.assigned_map[staff][date]
+
+
         pf = pd.DataFrame(table.penalties)
         pf = pf.sort_values(['P', 'W', 'Type', 'Cause'], ascending=[False, False, True, True], ignore_index=True)
+
         pf.index += 1
         print("Penalties:")
-        print(pf[['P', 'W', 'Type', 'Cause', 'Lim', 'Val']].to_string())
+        print(pf[['P', 'W', 'Type', 'Cause', 'Req', 'Res']].to_string())
     else:
         print("Penalties:")
         print("  None")
@@ -344,10 +382,10 @@ def read_model(file, color):
     except FileNotFoundError:
         print(f"Error: File '{file}' not found.")
         sys.exit(1)
-    
+
     atoms = parse_model(content)
     table = make_shift_table(atoms)
-    if table:        
+    if table:
         print_shift_table(table, color)
     else:
         print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
@@ -362,7 +400,7 @@ def monitor_file(file, interval, color):
             if current_modified != last_modified:
                 last_modified = current_modified
                 read_model(file, color)
-            time.sleep(interval)              
+            time.sleep(interval)
         except FileNotFoundError:
             print(f"File '{file}' not found. Waiting for it to be created...")
             time.sleep(interval)

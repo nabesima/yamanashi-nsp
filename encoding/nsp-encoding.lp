@@ -3,14 +3,14 @@
 %----------------------------------------------------------------------
 
 % Work shift
-LB { assigned(N, D) : workable_date(N, D) } UB :- 
+LB { assigned(N, D) : workable_date(N, D) } UB :-
     staff(N), work_days_bounds(N, LB, UB), not soft_all.
 
 % assigned/2 has exactly one work shift
 1 { assigned(N, D, S) : work_shift(S) } 1 :- assigned(N, D).
 
 % Weekly rest (necessary?)
-LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :- 
+LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :-
     weekly_rest_bounds(N, LB, UB), not soft_all.
 
 %----------------------------------------------------------------------
@@ -18,27 +18,27 @@ LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :-
 %----------------------------------------------------------------------
 
 % Allocates LB or more staffs
-violation(T, staff_lb(NG, SG, D), LB, X) :- 
-    staff_lb(T, NG, SG, D, LB), 
+violation(T, staff_lb(NG, SG, D), LB, X) :-
+    staff_lb(T, NG, SG, D, LB),
     X = { assigned(N, D, S) : staff_group(NG, N), shift_group(SG, S) },
     X < LB.
 
 % Allocates UB or less staffs
-violation(T, staff_ub(NG, SG, D), UB, X) :- 
-    staff_ub(T, NG, SG, D, UB), 
+violation(T, staff_ub(NG, SG, D), UB, X) :-
+    staff_ub(T, NG, SG, D, UB),
     X = { assigned(N, D, S) : staff_group(NG, N), shift_group(SG, S) },
     UB < X.
 
 % Allocates staffs who totally have LB or more points
 % sat_staff_point_hard_lb(G, SS, D) :- point_hard_lb(G, SS, D, LB), LB <= #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(G, N), shift_group(SS, S) }.
-violation(T, point_lb(NG, SG, D), LB, X) :- 
-    point_lb(T, NG, SG, D, LB), 
+violation(T, point_lb(NG, SG, D), LB, X) :-
+    point_lb(T, NG, SG, D, LB),
     X = #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(NG, N), shift_group(SG, S) },
     X < LB.
 
 % Allocates staffs who totally have UB or less points
-violation(T, point_ub(NG, SG, D), UB, X) :- 
-    point_ub(T, NG, SG, D, UB), 
+violation(T, point_ub(NG, SG, D), UB, X) :-
+    point_ub(T, NG, SG, D, UB),
     X = #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(NG, N), shift_group(SG, S) },
     UB < X.
 
@@ -50,20 +50,20 @@ violation(T, point_ub(NG, SG, D), UB, X) :-
 %----------------------------------------------------------------------
 
 % Assigns LB or more shifts
-violation(T, shift_lb(N, SG), LB, X) :- 
-    shift_lb(T, N, SG, LB), 
-    X = { assigned(N, D, S) : shift_group(SG, S) }, 
+violation(T, shift_lb(N, SG), LB, X) :-
+    shift_lb(T, N, SG, LB),
+    X = { assigned(N, D, S) : shift_group(SG, S) },
     X < LB.
 
 % Assigns UB or less shifts
-violation(T, shift_ub(N, SG), UB, X) :- 
-    shift_ub(T, N, SG, UB), 
-    X = { assigned(N, D, S) : shift_group(SG, S) }, 
+violation(T, shift_ub(N, SG), UB, X) :-
+    shift_ub(T, N, SG, UB),
+    X = { assigned(N, D, S) : shift_group(SG, S) },
     UB < X.
 
 % Ensure equal assignment of shift LD, SE
-:- staff(N), 
-    not 0 #sum{  1, D : assigned(N, D, "LD") ; 
+:- staff(N),
+    not 0 #sum{  1, D : assigned(N, D, "LD") ;
                 -1, D : assigned(N, D, "SE") } 0.
 
 %----------------------------------------------------------------------
@@ -74,37 +74,41 @@ violation(T, shift_ub(N, SG), UB, X) :-
 % The last day of the consecutive work period must be after the previous month's end.
 % (this is to avoid consecutive work violations in the manual shift table for the previous month).
 full_work_period(N, BD, ED) :-
-    staff(N), 
-    consecutive_work_ub(UB), 
-    base_date(BD), ED=BD+UB-1, base_date(ED), -1 <= ED,  
+    staff(N),
+    consecutive_work_ub(UB),
+    base_date(BD), ED=BD+UB-1, base_date(ED), -1 <= ED,
     work_date(N, D) : D = BD..ED.
 
 % Each nurse must not exceed the full consecutive working days.
-:- full_work_period(N, BD, ED), work_date(N, ED+1), not soft_all.
+violation(hard, consecutive_work_days(N, BD), UB, UB+1) :-
+    full_work_period(N, BD, ED),
+    work_date(N, ED+1),
+    consecutive_work_ub(UB).
 
 % A shift requiring next-day work is not assigned on the last day of a full consecutive period.
-:- full_work_period(N, BD, ED), 
-    ext_assigned(N, ED, S), 
-    has_next_work_day(S), not soft_all.
+violation(hard, consecutive_work_days(N, BD), UB, UB+1) :-
+    full_work_period(N, BD, ED),
+    ext_assigned(N, ED, S),
+    has_next_work_day(S),
+    consecutive_work_ub(UB).
+
 has_next_work_day(S) :-
-    next_shift(S, _), 
+    next_shift(S, _),
     work_shift(NS) : next_shift(S, NS).
 
+%----------------------------------------------------------------------
+% Constraints on requested shifts
+%----------------------------------------------------------------------
 
+% positive requested shift must be assigned
+violation(soft, pos_request(N, D)) :-
+    pos_request(N, D),
+    not 1 { ext_assigned(N, D, S) : pos_request(N, D, S) } 1.
 
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 希望シフトに関する制約
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% ある勤務シフトを希望しているのに，別の勤務シフトが割り当てられていると矛盾
-:- staff_request(N, D, REQ), ext_assigned(N, D, RES), REQ != RES, not soft_all.
-
-% penalty(staff_request(N, FD, REQ, RES), table(N, D), PNL, PRI) :- 
-%     staff_request(N, D, REQ), date2fulldate(D, FD), ext_assigned(N, D, RES), REQ != RES,
-%     _penalty("staff_request", PNL), _priority("staff_request", PRI).
-
+% negative requested shift must not be assigned
+violation(soft, neg_request(N, D)) :-
+    neg_request(N, D),
+    1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
 
 
 
@@ -115,11 +119,11 @@ has_next_work_day(S) :-
 
 % Extends 'assigned/3' to 'ext_assigned/3'
 ext_assigned(N, D, S) :- assigned(N, D, S).
-ext_assigned(N, D, S) :- not assigned(N, D), staff_request(N ,D, S), not work_shift(S).
+ext_assigned(N, D, S) :- not assigned(N, D), fixed_request(N ,D), pos_request(N, D, S).
 ext_assigned(N, D, "WR") :- not assigned(N, D), weekly_rest_date(N, D).
 ext_assigned(N, D, "PH") :- not assigned(N, D), public_holiday(N, D).
 
-% work_date/2 represents working days not only for the current month 
+% work_date/2 represents working days not only for the current month
 % but also for the previous and next months.
 work_date(N, D) :- ext_assigned(N, D, S), work_shift(S).
 work_date(N, D) :- ext_assigned(N, D, S), business_shift(S).
@@ -128,33 +132,27 @@ work_date(N, D) :- ext_assigned(N, D, S), business_shift(S).
 % Hard constraints
 %----------------------------------------------------------------------
 :- violation(hard, _, _, _).
+:- violation(hard, _).
 
 %----------------------------------------------------------------------
-% Penalty 
+% Penalty
 %----------------------------------------------------------------------
 penalty(TYPE, CAUSE, LIM, VAL, W, P) :-
-    violation(TYPE, CAUSE, LIM, VAL), 
+    violation(TYPE, CAUSE, LIM, VAL),
     TYPE = soft,
-    W = (LIM - VAL) * (LIM - VAL), 
+    W = (LIM - VAL) * (LIM - VAL),
+    priority(CAUSE, P).
+penalty(TYPE, CAUSE, 0, 0, 1, P) :-
+    violation(TYPE, CAUSE),
+    TYPE = soft,
     priority(CAUSE, P).
 
 % for obj function
 penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
-% for output
-penalty(TYPE, CAUSE, LOC, LIM, VAL, W, P) :-
-    penalty(TYPE, CAUSE, LIM, VAL, W, P),
-    location(CAUSE, LOC).
-
-penalty(CAUSE) :- penalty(_, CAUSE, _, _).
-location(C, L) :- penalty(C), C = staff_lb(NG, SG, D), L = num_staffs(NG, SG, D).
-location(C, L) :- penalty(C), C = staff_ub(NG, SG, D), L = num_staffs(NG, SG, D).
-location(C, L) :- penalty(C), C = point_lb(NG, SG, D), L = num_points(NG, SG, D).
-location(C, L) :- penalty(C), C = point_ub(NG, SG, D), L = num_points(NG, SG, D).
-location(C, L) :- penalty(C), C = shift_lb(N, SG), L = num_shifts(N, SG).
-location(C, L) :- penalty(C), C = shift_ub(N, SG), L = num_shifts(N, SG).
 
 % TODO
 priority(CAUSE,1) :- violation(soft, CAUSE, _, _).
+priority(CAUSE,1) :- violation(soft, CAUSE).
 
 %----------------------------------------------------------------------
 % Objective functions
@@ -174,22 +172,22 @@ out_date(D, FD, "PH") :- base_date(D, FD, W), public_holiday(D).
 #show.
 #show ext_assigned/3.
 #show out_date/3.
-#show penalty/7.
+#show penalty/6.
 
-%* 
+%*
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 看護師ごとのシフトの上下限制約
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % 勤務シフトを指定回数割り当てる
-LB { assigned(N, D) : workable_date(N, D) } UB :- 
+LB { assigned(N, D) : workable_date(N, D) } UB :-
     staff(N), working_dates_bounds(N, LB, UB), not soft_all.
 
 % % 各看護師 N, 各日 D に勤務シフト S を１つだけ割当
 % 1 { assigned(N, D, S) : working_shift(S) } 1 :- assigned(N, D).
 
 % % 週休シフトを指定回数割り当てる
-% LB { not assigned(N, D) : strict_workable_date(N, D) } UB :- 
+% LB { not assigned(N, D) : strict_workable_date(N, D) } UB :-
 %     weekly_holiday_bounds(N, LB, UB), not soft_all.
 
 % % ハード休暇シフト -> workable_day ではないので不要?
@@ -268,14 +266,14 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % % 各日 D，各シフト S，各看護師グループ G に属する看護師の点数和の下限制約
 % sat_staff_point_hard_lb(G, SS, D) :- point_hard_lb(G, SS, D, LB), LB <= #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(G, N), shift_group(SS, S) }.
 
-% penalty(point_soft_lb(FD, SS, G, LB, X), num_points(D, SS, G), PNL * (LB - X) * (LB - X), PRI) 
+% penalty(point_soft_lb(FD, SS, G, LB, X), num_points(D, SS, G), PNL * (LB - X) * (LB - X), PRI)
 %     :- point_soft_lb(G, SS, D, LB), date2fulldate(D, FD), X = #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(G, N), shift_group(SS, S) }, X < LB,
 %        _penalty("point_lb", PNL), _priority("point_lb", PRI).
 
 % % 各日 D，各シフト S，各看護師グループ G に属する看護師の点数和の上限制約
 % sat_staff_point_hard_ub(G, SS, D) :- point_hard_ub(G, SS, D, UB), #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(G, N), shift_group(SS, S) } <= UB.
 
-% penalty(point_soft_ub(FD, SS, G, UB, X), num_points(D, SS, G), PNL * (X - UB) * (X - UB), PRI) 
+% penalty(point_soft_ub(FD, SS, G, UB, X), num_points(D, SS, G), PNL * (X - UB) * (X - UB), PRI)
 %     :- point_soft_ub(G, SS, D, UB), date2fulldate(D, FD), X = #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(G, N), shift_group(SS, S) }, UB < X,
 %        _penalty("point_ub", PNL), _priority("point_ub", PRI).
 
@@ -292,7 +290,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % % Requires the number of shift assignments to satisfy the hard limit
-% :- shifts_hard_lb(N, SG, LB), 
+% :- shifts_hard_lb(N, SG, LB),
 %     not LB { assigned(N, D, S) : shift_group(SG,S) }, not soft_all.
 
 % penalty(shifts_soft_lb(N, SS, LB, X), num_shifts(N, SS), PNL * (LB - X) * (LB - X), PRI) :-
@@ -315,9 +313,9 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 
 % % フル勤務の期間
 % full_work_period(N, BD, ED) :-
-%     consecutive_work_ub(UB), base_date(BD), ED=BD+UB-1, base_date(ED), 
+%     consecutive_work_ub(UB), base_date(BD), ED=BD+UB-1, base_date(ED),
 %     first_date(FD), FD-1 <= ED,  % フル勤務最終日は，前月末以降（前月に違反連続勤務がある場合は無視したい）
-%     staff(N), % not ext_assigned(N, BD-1),    
+%     staff(N), % not ext_assigned(N, BD-1),
 %     ext_assigned(N, D) : D = BD..ED.
 
 % % 連続勤務回数を超えてはならない
@@ -334,7 +332,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     staff(N),
 %     0 < { date(D, "日") : ext_assigned(N, D, S2), ext_assigned(N, D-1, S1), regular_holiday_shift(S1), regular_holiday_shift(S2) },
 %     num_past_weekend_offs(N, X),
-%     max_past_weekend_offs(PAST_MAX), 
+%     max_past_weekend_offs(PAST_MAX),
 %     _reward("weekend_offs", RWD), _priority("weekend_offs", PRI).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -345,7 +343,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     staff(N),
 %     0 < { ext_assigned(N, D-2) : ext_regular_holiday_off(N, D-1), ext_regular_holiday_off(N, D), date(D) },
 %     num_past_consecutive_holidays(N, X),
-%     max_past_consecutive_holidays(PAST_MAX), 
+%     max_past_consecutive_holidays(PAST_MAX),
 %     _reward("consecutive_holidays", RWD), _priority("consecutive_holidays", PRI).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -356,7 +354,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     staff(N),
 %     0 < { national_holiday_off(N, _) },
 %     num_past_national_holiday_offs(N, X),
-%     max_past_national_holiday_offs(PAST_MAX), 
+%     max_past_national_holiday_offs(PAST_MAX),
 %     num_national_holidays(CURR_MAX),
 %     _reward("national_holiday_off", RWD), _priority("national_holiday_off", PRI).
 
@@ -372,7 +370,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 
 % % パターンが希望シフトによるものかどうか
 % requested_pattern(PID, N, BD, ED) :-
-%     pattern_occured(PID, N, BD, ED), 
+%     pattern_occured(PID, N, BD, ED),
 %     staff_request(N, BD + IDX, S) : pattern(PID, IDX, S), not regular_holiday_shift(S) ;
 %     staff_request(N, BD + IDX, ("○";"◎")) : pattern(PID, IDX, "○").
 
@@ -383,14 +381,14 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % % 孤立した勤務日を抑制する
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % isolated_working_day(N, D+1) :-
-%     staff(N), date(D+2), 
+%     staff(N), date(D+2),
 %     ext_valid_holiday_off(N, D+2),
 %     ext_assigned(N, D+1),
 %     ext_valid_holiday_off(N, D).
 
-% penalty(isolated_working_day(N, FD), table(N, D), PNL, PRI) :- 
+% penalty(isolated_working_day(N, FD), table(N, D), PNL, PRI) :-
 %     isolated_working_day(N, D), date2fulldate(D, FD), not allow_isolated_working_day,
-%     _penalty("isolated_working_day", PNL), _priority("isolated_working_day", PRI).    
+%     _penalty("isolated_working_day", PNL), _priority("isolated_working_day", PRI).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % % 前日・翌日可能シフトに関する制約
@@ -399,14 +397,14 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % % 前日に出現不可なシフト
 % prev_base_shift(S) :- prev_shift(_, S).
 
-% :- hard_prev_shift(S), not soft_all, 
-%     prev_base_shift(S), ext_assigned(N, D, S), 
+% :- hard_prev_shift(S), not soft_all,
+%     prev_base_shift(S), ext_assigned(N, D, S),
 %     first_date(FD), last_date(LD), FD <= D, D <= LD+1,  % 当月頭から翌月頭までが対象
 %     not 1 { ext_assigned(N, D-1, PS) : prev_shift(PS, S), not valid_holiday_shift(PS) ;
 %             valid_holiday_off(N, D-1) : prev_shift("○", S) } 1.
 
-% penalty(prev_shift(N, DD, S), table(N, D), PNL, PRI) :- 
-%     not hard_prev_shift(S), prev_base_shift(S), ext_assigned(N, D, S), 
+% penalty(prev_shift(N, DD, S), table(N, D), PNL, PRI) :-
+%     not hard_prev_shift(S), prev_base_shift(S), ext_assigned(N, D, S),
 %     first_date(FD), last_date(LD), FD <= D, D <= LD+1, date2fulldate(D, DD), % 当月頭から翌月頭までが対象
 %     not 1 { ext_assigned(N, D-1, PS) : prev_shift(PS, S), not valid_holiday_shift(PS) ;
 %             valid_holiday_off(N, D-1) : prev_shift("○", S) } 1,
@@ -416,14 +414,14 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % next_base_shift(S) :- next_shift(S, _).
 
 % :- hard_next_shift(S), not soft_all,
-%     next_base_shift(S), ext_assigned(N, D, S), 
+%     next_base_shift(S), ext_assigned(N, D, S),
 %     first_date(FD), last_date(LD), FD-1 <= D, D <= LD,  % 前月末から当月末までが対象
 %     not 1 { ext_assigned(N, D+1, SS) : next_shift(S, SS), not valid_holiday_shift(SS) ;
 %             valid_holiday_off(N, D+1) : next_shift(S, "○") ;
 %             not staff_request(N, D+1) : last_date(D) } 1.
 
-% penalty(next_shift(N, DD, S), table(N, D), PNL, PRI) :- 
-%     not hard_next_shift(S), next_base_shift(S), ext_assigned(N, D, S), 
+% penalty(next_shift(N, DD, S), table(N, D), PNL, PRI) :-
+%     not hard_next_shift(S), next_base_shift(S), ext_assigned(N, D, S),
 %     first_date(FD), last_date(LD), FD-1 <= D, D <= LD,  date2fulldate(D, DD), % 前月末から当月末までが対象
 %     not 1 { ext_assigned(N, D+1, SS) : next_shift(S, SS), not valid_holiday_shift(SS) ;
 %             valid_holiday_off(N, D+1) : next_shift(S, "○") ;
@@ -431,14 +429,14 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     _penalty("invalid_patterns", PNL), _priority("invalid_patterns", PRI).
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% % パターン割当数の最小・最大値		
+% % パターン割当数の最小・最大値
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % :- patterns_hard_lb(PS, LB), staff(N), not soft_all,
 %     not LB { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }.  % 今月に終わるパターンの頻度を数える
 
-% penalty(patterns_soft_lb(N, PS, LB, X), staff(N), PNL * (LB - X) * (LB - X), PRI) :- 
-%     patterns_soft_lb(PS, LB), staff(N), 
+% penalty(patterns_soft_lb(N, PS, LB, X), staff(N), PNL * (LB - X) * (LB - X), PRI) :-
+%     patterns_soft_lb(PS, LB), staff(N),
 %     X = { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }, X < LB,  % 今月に終わるパターンの頻度を数える
 %     _penalty("patterns_lb", PNL), _priority("patterns_lb", PRI).
 
@@ -446,7 +444,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     not { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) } UB.  % 今月に終わるパターンの頻度を数える
 
 % penalty(patterns_soft_ub(N, PS, UB, X), staff(N), PNL * (X - UB) * (X - UB), PRI) :-
-%     patterns_soft_ub(PS, UB), staff(N), 
+%     patterns_soft_ub(PS, UB), staff(N),
 %     X = { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }, UB < X,  % 今月に終わるパターンの頻度を数える
 %     _penalty("patterns_ub", PNL), _priority("patterns_ub", PRI).
 
@@ -465,7 +463,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     not staff_soft_holiday_request(N, BD-1),
 %     staff_soft_holiday_request(N, D) : D = BD..ED;  % 前処理（探索なし）なので基礎化しても大きく爆発しない
 %     not staff_soft_holiday_request(N, ED+1).
-    
+
 
 % % 希望休暇の前後に週休を割り当てる基準となる連続休暇数（これ未満の連続休暇の前後に週休を割り当てる）
 % def_adjacent_holiday_limit(28).
@@ -473,7 +471,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % _adjacent_holiday_limit(X) :- not adjacent_holiday_limit(_), def_adjacent_holiday_limit(X).
 
 % % ソフト休暇の前後のいずれかには週休を入れる
-% :- hard_adjacent_holiday(N), not soft_all, 
+% :- hard_adjacent_holiday(N), not soft_all,
 %     requested_holidays_period(N, BD, ED),
 %     _adjacent_holiday_limit(LEN),
 %     ED - BD + 1 < LEN,
@@ -483,7 +481,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     requested_holidays_period(N, BD, ED),
 %     _adjacent_holiday_limit(LEN),
 %     ED - BD + 1 < LEN,
-%     date2fulldate(BD, FBD), date2fulldate(ED, FED),    
+%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
 %     ext_assigned(N, BD-1), ext_assigned(N, ED+1),
 %     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
 
@@ -491,7 +489,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     requested_holidays_period(N, BD, ED),
 %     _adjacent_holiday_limit(LEN),
 %     ED - BD + 1 >= LEN,
-%     date2fulldate(BD, FBD), date2fulldate(ED, FED),    
+%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
 %     1 {regular_holiday_off(N, BD-1) ; regular_holiday_off(N, ED+1)},
 %     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
 
@@ -501,7 +499,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 
 % penalty(night_pair(N1, N2, X), staffs(N1, N2), PNL * (LB - X), PRI) :-
 %     recommended_pair(N1, N2),
-%     recommended_pair_lb(LB), 
+%     recommended_pair_lb(LB),
 %     X = { date(D) : night_working_shift(S), assigned(N1, D, S), assigned(N2, D, S) },
 %     X < LB,
 %     _penalty("night_pair", PNL), _priority("night_pair", PRI).
@@ -511,7 +509,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % % 禁止ペアは同じ夜勤勤務シフトを割り当てない
-% :- forbidden_pair(N1, N2), night_working_shift(S), 
+% :- forbidden_pair(N1, N2), night_working_shift(S),
 %     assigned(N1, D, S), assigned(N2, D, S), not soft_all.
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -519,10 +517,10 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % % ある勤務シフトを希望しているのに，別の勤務シフトが割り当てられていると矛盾
-% :- hard_staff_request(N), 
+% :- hard_staff_request(N),
 %     staff_request(N, D, REQ), ext_assigned(N, D, RES), REQ != RES, not soft_all.
 
-% penalty(staff_request(N, FD, REQ, RES), table(N, D), PNL, PRI) :- 
+% penalty(staff_request(N, FD, REQ, RES), table(N, D), PNL, PRI) :-
 %     staff_request(N, D, REQ), date2fulldate(D, FD), ext_assigned(N, D, RES), REQ != RES,
 %     _penalty("staff_request", PNL), _priority("staff_request", PRI).
 
@@ -540,14 +538,14 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % %:- neg_request(N, D, S), ext_assigned(N, D, S), not soft_all.
 
 % % 不可シフトが割り当てられていると矛盾
-% penalty(neg_request(N, FD, S), table(N, D), PNL, PRI) :- 
-%     neg_request(N, D, S), ext_assigned(N, D, S), 
+% penalty(neg_request(N, FD, S), table(N, D), PNL, PRI) :-
+%     neg_request(N, D, S), ext_assigned(N, D, S),
 %     date2fulldate(D, FD),
 %     _penalty("staff_request", PNL), _priority("staff_request", PRI).
 
 % % ソフト版：シフト希望がない場合にネガティブシフトが割り当てられていると矛盾
-% penalty(neg_def_request(N, FD, S), table(N, D), PNL, PRI) :- 
-%     neg_def_request(N, D, S), not staff_request(N, D), ext_assigned(N, D, S), 
+% penalty(neg_def_request(N, FD, S), table(N, D), PNL, PRI) :-
+%     neg_def_request(N, D, S), not staff_request(N, D), ext_assigned(N, D, S),
 %     date2fulldate(D, FD),
 %     _penalty("neg_def_request", PNL), _priority("neg_def_request", PRI).
 
@@ -660,7 +658,7 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     X = { national_holiday_off(N, _) }.
 
 % num_curr_consecutive_holidays(N, X) :-
-%     staff(N), 
+%     staff(N),
 %     X = { ext_assigned(N, D-2) : ext_regular_holiday_off(N, D-1), ext_regular_holiday_off(N, D), date(D) }.
 
 % out_stats(num_weekend_offs(N, P, C, P+C)) :- num_past_weekend_offs(N, P), num_curr_weekend_offs(N, C).
@@ -686,5 +684,5 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % #show reward/4.
 % #show error/1.
 % #show shift_rel/2.
-% #show shift_order/2. 
+% #show shift_order/2.
 *%

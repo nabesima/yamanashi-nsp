@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from dataclasses import dataclass, field
-import datetime
+from datetime import datetime, timedelta
 import random
 from sys import stdout
 from typing import List
@@ -26,7 +26,7 @@ class Staff:
 class StaffGroup:
     name: str
     members: List[Staff] = field(default_factory=list)
-    
+
     def add(self, staff):
         self.members.append(staff)
 
@@ -41,7 +41,15 @@ class Dates:
     width: int
 
     def __post_init__(self):
-        self.start_date = datetime.datetime.strptime(self.str_start_date, "%Y-%m-%d")
+        self.start_date = datetime.strptime(self.str_start_date, "%Y-%m-%d")
+
+    def choice(self):
+        d = random.randrange(0, self.width)
+        return self.start_date + timedelta(days=d)
+
+    def is_holiday(self, d: int):
+        date = self.start_date + timedelta(days=d)
+        return jpholiday.is_holiday(date)
 
     def to_asp(self, out):
 
@@ -50,43 +58,29 @@ class Dates:
 
         print("% Dates ------------------------------------------", file=out)
         for d in list(range(-7, self.width + 7)):
-            date = self.start_date + datetime.timedelta(days=d)
+            date = self.start_date + timedelta(days=d)
             int_date = date.strftime("%Y%m%d")
             print(f'base_date({d}, {int_date}, "{get_wday(date)}").', file=out)
 
         print("% Previous month", file=out)
         for d in list(range(-7, 0)):
-            date = self.start_date + datetime.timedelta(days=d)
+            date = self.start_date + timedelta(days=d)
             print(f'prev_date({d}, "{get_wday(date)}").', file=out)
 
         print("% This month", file=out)
         for d in list(range(0, self.width)):
-            date = self.start_date + datetime.timedelta(days=d)
+            date = self.start_date + timedelta(days=d)
             print(f'date({d}, "{get_wday(date)}").', file=out)
 
         print("% Next month", file=out)
         for d in list(range(self.width, self.width + 7)):
-            date = self.start_date + datetime.timedelta(days=d)
+            date = self.start_date + timedelta(days=d)
             print(f'next_date({d}, "{get_wday(date)}").', file=out)
 
         print("% Public holidays", file=out)
-        for d in list(range(-7, self.width + 7)):  
-            date = self.start_date + datetime.timedelta(days=d)
-            if jpholiday.is_holiday(date):
+        for d in list(range(-7, self.width + 7)):
+            if self.is_holiday(d):
                 print(f'public_holiday({d}).', file=out)
-
-        print("% Past dates -------------------------------------", file=out)
-        for d in list(range(-7-28, -7)):
-            date = self.start_date + datetime.timedelta(days=d)
-            int_date = date.strftime("%Y%m%d")
-            print(f'past_date({d}, {int_date}, "{get_wday(date)}").', file=out)
-
-        print("% Past public holidays", file=out)
-        for d in list(range(-7-28, -7)):
-            date = self.start_date + datetime.timedelta(days=d)
-            if jpholiday.is_holiday(date):
-                int_date = date.strftime("%Y%m%d")
-                print(f'past_public_holiday({d}, {int_date}, "{get_wday(date)}").', file=out)
 
 @dataclass
 class ShiftGroup:
@@ -118,7 +112,7 @@ class StaffBound:
     staff_group: StaffGroup
     shift_group: ShiftGroup
     dweek_type: str
-    val: int    
+    val: int
 
     def __post_init__(self):
         if self.btype != "soft_lb" and self.btype != "soft_ub" and self.btype != "hard_lb" and self.btype != "hard_ub":
@@ -141,13 +135,47 @@ class VerticalConstraintType:
     staff_group: StaffGroup
     shift_group: ShiftGroup
     obj_type: str
-    
+
     def __post_init__(self):
         if self.obj_type != "Staffs" and self.obj_type != "Points":
             raise ValueError(f'Unexpected object type: {self.obj_type}')
 
     def to_asp(self, out):
         print(f'vertical_constraint_type("{self.staff_group.name}", "{self.shift_group.name}", "{self.obj_type}").', file=out)
+
+SHIFTS = {
+    "work": [ "D", "LD", "EM", "LM", "E", "SE", "N", "SN"] ,
+    "rest": [ "WR", "PH" ],
+    "business": [ "BT", "TR", "HC" ],
+    "leave": [ "AL", "BL", "HL", "ML", "NL", "PL", "SL", "SP", "VL", "WL" ],
+    "na": [ "AB", "LA", "NA" ],
+}
+
+@dataclass
+class StaffRequest:
+    pos: bool
+    staff: Staff
+    date: datetime
+    shift: str
+
+    def is_conflict(self, other):
+        if self.staff == other.staff and self.date == other.date:
+            if self.pos != other.pos:
+                return self.shift == other.shift  # requesting the same shift as both positive and negative
+            if self.shift == other.shift:
+                return True  # avoid the same request
+            # business, leave or na shifts can be requested only once for the same day.
+            if self.shift in SHIFTS["business"] or self.shift in SHIFTS["leave"] or self.shift in SHIFTS["na"]:
+                return True
+        return False
+
+    def to_string(self):
+        pos = "pos" if self.pos else "neg"
+        int_date = self.date.strftime("%Y%m%d")
+        return f'staff_{pos}_request("{self.staff.id}", {int_date}, "{self.shift}").'
+
+    def to_asp(self, out):
+        print(self.to_string(), file=out)
 
 class NSP:
     def __init__(self):
@@ -160,6 +188,8 @@ class NSP:
         self.staff_bounds = []
         self.horizontal_constraint_types = []
         self.vertical_constraint_types = []
+        self.consecutive_work_days = None
+        self.staff_requests = []
 
     def set_width(self, num_days: int, start_date: str = "2025-04-01"):
         self.dates = Dates(start_date, num_days)
@@ -212,19 +242,30 @@ class NSP:
             self.vertical_constraint_types.append(v)
         self.staff_bounds.append(StaffBound(btype, staff_group, shift_group, dweek_type, val))
 
-    def set_default_setting(self, num_staffs:int, num_days: int, start_date: str):
+    def add_staff_request(self, pos: bool, staff: Staff, date: datetime, shift: str):
+        req = StaffRequest(pos, staff, date, shift)
+        for r in self.staff_requests:
+            if req.is_conflict(r):
+                #print("  conflict: " + r.to_string())
+                return False
+        self.staff_requests.append(req)
+        return True
+
+    def set_default_setting(self, num_staffs:int, num_days: int, start_date: str, consec_work_days: int, staff_req: float):
         self.set_width(num_days, start_date)
         self.set_default_staffs(num_staffs)
         self.set_default_shifts_constraint()
         self.set_default_staffs_constraints()
+        self.consecutive_work_days = consec_work_days
+        self.set_default_staff_requests(staff_req)
 
     def set_default_staffs(self, num):
 
         def split_with_rounding(num, ratios):
-            counts = [round(num * r) for r in ratios]  
-            diff = num - sum(counts) 
+            counts = [round(num * r) for r in ratios]
+            diff = num - sum(counts)
             for i in range(abs(diff)):
-                counts[i % len(counts)] += 1 if diff > 0 else -1 
+                counts[i % len(counts)] += 1 if diff > 0 else -1
             return counts
 
         counts = split_with_rounding(num, [0.3, 0.5, 0.2])
@@ -249,7 +290,7 @@ class NSP:
         for _ in range(counts[2]):
             name = fake.name()
             point = random.randint(1, 3)  # Low skill level
-            staff = self.add_staff(name, "Nurse", point)            
+            staff = self.add_staff(name, "Nurse", point)
             self.add_staff_to_group("Novice", staff)
 
         for staff in self.staffs:
@@ -277,14 +318,14 @@ class NSP:
                     self.add_shift_bound("soft_lb", staff, [shift], lb)
                     self.add_shift_bound("soft_ub", staff, [shift], ub)
                 for shift in ["E", "N"]:
-                    self.add_shift_bound("hard_ub", staff, [shift], 0)                    
-                self.add_shift_bound("hard_ub", staff, ["EM"], 0) 
-                self.add_shift_bound("hard_ub", staff, ["LM"], 1) 
+                    self.add_shift_bound("hard_ub", staff, [shift], 0)
+                self.add_shift_bound("hard_ub", staff, ["EM"], 0)
+                self.add_shift_bound("hard_ub", staff, ["LM"], 1)
 
 
     def set_default_staffs_constraints(self):
         for staff_gname in DEF_STAFF_BOUNDS:
-            staff_group = self.staff_groups[staff_gname]        
+            staff_group = self.staff_groups[staff_gname]
             for shift_gnames in DEF_STAFF_BOUNDS[staff_gname]:
                 for shift_gname in shift_gnames.split(","):
                     shift_group = shift_gname.split("+")
@@ -296,6 +337,20 @@ class NSP:
                                 if num == 0:
                                     continue
                                 self.add_staff_bound(btype, staff_group, shift_group, dweek, num)
+
+    def set_default_staff_requests(self, ratio):
+        req_shifts = ["D", "SE", "SN", "WR", "BT", "TR", "AL", "BL"]
+        num_cells = len(self.staffs) * self.dates.width
+        num_req = round(num_cells * ratio)
+        for _ in range(0, num_req):
+            while True:
+                staff = random.choice(self.staffs)
+                date = self.dates.choice()
+                shift = random.choice(req_shifts)
+                # Handle short evening or short night shifts as negative requests
+                pos = shift != "SE" and shift != "SN"
+                if self.add_staff_request(pos, staff, date, shift):
+                    break
 
     def to_asp(self, out):
         print("% Staffs -----------------------------------------", file=out)
@@ -318,22 +373,37 @@ class NSP:
             sb.to_asp(out)
         for v in self.vertical_constraint_types:
             v.to_asp(out)
+        print("% Shift related constraints ----------------------", file=out)
+        if self.consecutive_work_days:
+            print("% Maximum consecutive working days", file=out)
+            print(f"consecutive_work_ub({self.consecutive_work_days}).", file=out)
+        print("% Staff requests ---------------------------------", file=out)
+        for r in self.staff_requests:
+            r.to_asp(out)
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate a Nurse Scheduling Problem instance.")
-    parser.add_argument("-n", type=int, default=6, help="Number of nurses (default: 6)")
-    parser.add_argument("-d", type=int, default=7, help="Number of days (default: 7)")
-    parser.add_argument("-s", type=str, default="2025-04-01", help="Start date in YYYY-MM-DD format (default: 2025-04-01)")
-    parser.add_argument("-r", type=int, default=None, help="Set the random seed (default: None)")
+    parser = argparse.ArgumentParser(description="Generate a Nurse Scheduling Problem instance.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-n", "--num-nurses", type=int, default=6, help="Number of nurses")
+    parser.add_argument("-d", "--num-days", type=int, default=7, help="Number of days")
+    parser.add_argument("-s", "--start-date", type=str, default="2025-04-01", help="Start date in YYYY-MM-DD format")
+    parser.add_argument("-c", "--consecutive-work-days", type=int, default=5, help="Number of consecutive workdays")
+    parser.add_argument("-r", "--staff-request", type=float, default=0.05, help="Staff request rate as a percentage (between 0.0 and 1.0)")
+    parser.add_argument("--seed", type=int, default=None, help="Set the random seed")
     args = parser.parse_args()
 
-    if args.r != None:
-        fake.seed_instance(args.r)
-        random.seed(args.r)
+    if args.seed != None:
+        fake.seed_instance(args.seed)
+        random.seed(args.seed)
 
     # Generate a NSP instance
     nsp_instance = NSP()
-    nsp_instance.set_default_setting(args.n, args.d, args.s)
+    nsp_instance.set_default_setting(
+        args.num_nurses,
+        args.num_days,
+        args.start_date,
+        args.consecutive_work_days,
+        args.staff_request)
     nsp_instance.to_asp(stdout)
 
 if __name__ == "__main__":

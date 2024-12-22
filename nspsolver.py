@@ -11,15 +11,15 @@ import argparse
 from showmodel import make_shift_table, print_shift_table
 
 # An event flag to signal when the solving process should stop (e.g., triggered by Ctrl+C).
-stop_event = threading.Event()  
+stop_event = threading.Event()
 # A condition variable to manage notifications between threads (e.g., for model update or stopping).
-condition = threading.Condition()  
+condition = threading.Condition()
 
 # Ctrl+C signal handler
 def signal_handler(sig, frame):
     print("\nCtrl+C detected! Stopping Clingo...")
-    stop_event.set()  
-    with condition:  
+    stop_event.set()
+    with condition:
         condition.notify_all()
 
 class NSPSolver:
@@ -76,6 +76,8 @@ class NSPSolver:
         def get_cost():
             s = self.control.statistics['summary']
             if len(s['costs']) == 0:
+                return None
+            if s['costs'][0] == math.inf:
                 return None
             return " ".join([str(int(c)) for c in self.control.statistics['summary']['costs']])
 
@@ -135,7 +137,7 @@ class NSPSolver:
                 print("Error: model contains no shift assignments (ext_assigned/3).")
 
         if self.output:
-            atoms = "\n".join([str(atom) + "." for atom in model.symbols(atoms=True)])            
+            atoms = "\n".join([str(atom) + "." for atom in model.symbols(atoms=True)])
             with open(self.output, 'w') as f:
                 fcntl.flock(f, fcntl.LOCK_EX)
                 try:
@@ -153,7 +155,7 @@ class NSPSolver:
         def try_to_int(n):
             # Check if the value is a float with .0 and convert it to an integer
             if isinstance(n, float) and n.is_integer():
-                return int(n) 
+                return int(n)
             return n
 
         if d == None:
@@ -204,9 +206,9 @@ def main():
         help="Logic program files (one or more)"
     )
     parser.add_argument("-m", action="store_true", help="Display only atoms specified by #show.")
-    parser.add_argument("-M", action="store_true", help="Display all atoms.")    
+    parser.add_argument("-M", action="store_true", help="Display all atoms.")
     parser.add_argument("-t", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
-    parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")    
+    parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")
     parser.add_argument(
         "-v", "--verbose",
         nargs="?",  # Optional argument with a default value if specified without a value
@@ -222,7 +224,7 @@ def main():
         type=int,  # Ensure the verbose level is an integer
         default=0,  # Default to 0 if -s is not specified
         help="Set statistics level (0: silent, 1: basic, 2: detailed)"
-    )    
+    )
     # Pass unrecognized arguments to Clingo
     args, unknown_args = parser.parse_known_args()
 
@@ -246,15 +248,15 @@ def main():
 
     # Create an NSPSolver instance
     solver = NSPSolver(
-        files=args.files, 
-        output=args.output, 
-        clingo_options=unknown_args, 
-        show_model=show_model, 
+        files=args.files,
+        output=args.output,
+        clingo_options=unknown_args,
+        show_model=show_model,
         show_table=args.t,
-        verbose=args.verbose, 
+        verbose=args.verbose,
         stats=args.stats,
     )
-    
+
     # Load logic programs and solve
     solver.load_programs()
     solver.solve()

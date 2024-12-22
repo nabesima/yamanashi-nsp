@@ -16,20 +16,34 @@ full_date(FD, D) :- past_date(D, FD, _).
 %----------------------------------------------------------------------
 % Shift data related
 %----------------------------------------------------------------------
-shift_data(N, D, S) :- staff(N, CD), shift_data(CD, _, FD, S), full_date(FD, D).
+shift_data(N, D, S) :- shift_data(ID, _, FD, S), staff(N, ID), full_date(FD, D).
 
 %----------------------------------------------------------------------
-% Previous, current and next month shifts
+% Previous and next month shifts
 %----------------------------------------------------------------------
 
 % Define previous month's shifts as ext_assigned/3
 ext_assigned(N, D, S) :- staff(N), prev_date(D), shift_data(N, D, S).
 
-% Define current month's shifts (requested shifts) as staff_request/3
-staff_request(N, D, S) :- staff(N), date(D), shift_data(N, D, S).
-
 % Define next month's shifts (requested shifts) as ext_assigned/3
 ext_assigned(N, D, S) :- staff(N), next_date(D), shift_data(N, D, S).
+
+%----------------------------------------------------------------------
+% Requested shifts
+%----------------------------------------------------------------------
+
+pos_request(N, D, S) :- staff_pos_request(ID, FD, S), staff(N, ID), full_date(FD, D).
+neg_request(N, D, S) :- staff_neg_request(ID, FD, S), staff(N, ID), full_date(FD, D).
+% Abbreviations
+pos_request(N, D) :- pos_request(N, D, _).
+neg_request(N, D) :- neg_request(N, D, _).
+business_request(N, D) :- pos_request(N, D, S), business_shift(S).
+leave_request(N, D) :- pos_request(N, D, S), business_shift(S).
+na_request(N, D) :- pos_request(N, D, S), business_shift(S).
+fixed_request(N, D) :- business_request(N, D); leave_request(N, D); na_request(N, D).
+
+% Define current month's shifts (requested shifts) as pos_request/3
+pos_request(N, D, S) :- staff(N), date(D), shift_data(N, D, S).
 
 %----------------------------------------------------------------------
 % Dates-related
@@ -46,9 +60,12 @@ weekday(D) :- date(D, ("Mo";"Tu";"We";"Th";"Fr")), not public_holiday(D).
 % Weekends
 weekend(D) :- date(D, ("Sa";"Su")), not public_holiday(D).
 % First date of shift table
-first_date(X) :- X = #min { D : date(D, _) }.
+first_date(0).
+first_full_date(FD) :- base_date(0, FD, _).
 % Last date of shift table
 last_date(X)  :- X = #max { D : date(D, _) }.
+% Past dates
+past_date(D, PD, W) :- past_date(PD, W), first_full_date(FD), D = PD-FD.
 
 %----------------------------------------------------------------------
 % Work, rest, business, leave and na dates
@@ -56,53 +73,38 @@ last_date(X)  :- X = #max { D : date(D, _) }.
 
 % Days on which work shifts can be assigned
 workable_date(N, D) :-
-    staff(N), 
-    date(D),     
-    not business_date(N, D),
-    not na_date(N, D).
+    staff(N),
+    date(D),
+    not business_request(N, D),
+    not na_request(N, D).
 
 % Days on which weekly rest shift can be assigned
 weekly_rest_date(N, D) :-
-    staff(N), 
-    workable_date(N, D), 
-    not req_leave_date(N, D), 
+    staff(N),
+    workable_date(N, D),
+    not leave_request(N, D),
     not public_holiday(N, D).
 
 % Days on which public holiday offs can be assigned
-public_holiday(N, D) :- 
-    staff(N), 
-    date(D), 
-    public_holiday(D),
-    not business_date(N, D),
-    not req_leave_date(N, D),
-    not na_date(N, D).
-
-% Business shift dates
-business_date(N, D) :- 
-    staff(N), 
-    date(D), 
-    staff_request(N, D, S), 
-    business_shift(S).
-num_business_days(N, X) :-
-    staff(N), X = { business_date(N, D) }.
-
-% Requested leave dates
-req_leave_date(N, D) :- 
-    staff(N), 
-    date(D), 
-    staff_request(N, D, S), 
-    leave_shift(S).
-num_req_leave_days(N, X) :-
-    staff(N), X = { req_leave_date(N, D) }.
-
-% Unavailable dates for each nurse
-na_date(N, D) :- 
+public_holiday(N, D) :-
     staff(N),
-    date(D), 
-    staff_request(N, D, S), 
-    na_shift(S).
+    date(D),
+    public_holiday(D),
+    not business_request(N, D),
+    not leave_request(N, D),
+    not na_request(N, D).
+
+% Number of requested business days
+num_business_days(N, X) :-
+    staff(N), X = { business_request(N, D) : staff(N), date(D) }.
+
+% Number of requested leave days
+num_req_leave_days(N, X) :-
+    staff(N), X = { leave_request(N, D) : staff(N), date(D) }.
+
+% Number of requested na days
 num_na_days(N, X) :-
-    staff(N), X = { na_date(N, D) }.
+    staff(N), X = { na_request(N, D) : staff(N), date(D) }.
 
 %----------------------------------------------------------------------
 % Number of work and rest days
@@ -114,13 +116,13 @@ num_public_holidays(N, X) :-
 
 % Number of weekly rests for each nurse
 weekly_rest_bounds(N, LB, UB) :-
-    staff(N), 
-    table_width(WIDTH), 
+    staff(N),
+    table_width(WIDTH),
     num_na_days(N, NA),
     default_weekly_rests(DWR),
     LB = @weekly_holidays_lb(WIDTH, NA, DWR),
     CUB = @weekly_holidays_ub(WIDTH, NA, DWR),
-    RWR = { staff_request(N, D, "WR") : date(D) },
+    RWR = { pos_request(N, D, "WR") : date(D) },
     UB = @max(CUB, RWR). % Use RWR if RWR > CUB (sometimes happen)
 
 % Number of work days for each nurse
@@ -192,26 +194,26 @@ shift_ub(hard, N, SG, V) :- shifts_hard_ub(N, SG, V).
 % Past shift assignments related
 %----------------------------------------------------------------------
 % Number of shift S assignments in past for nurse N
-num_past_shifts(N, S, X) :- 
+num_past_shifts(N, S, X) :-
     staff(N), shift(S), X = { shift_data(N, D, S) : past_date(D) }.
 
 % Number of past weekend offs for nurse N
 num_past_weekend_offs(N, X) :-
-    staff(N), 
-    X = { shift_data(N, D, S1) : 
+    staff(N),
+    X = { shift_data(N, D, S1) :
             shift_data(N, D+1, S2),
             past_date(D, _, "Sa"),
             past_date(D+1, _, "Su"),
             rest_shift(S1), rest_shift(S2) }.
 % Max number of weekend offs
-max_past_weekend_offs(X) :- 
+max_past_weekend_offs(X) :-
     X = #max { Y : num_past_weekend_offs(N, Y), staff(N) }.
 
 % Number of past public holiday offs for nurse N
 num_past_public_holiday_offs(N, X) :-
     staff(N), X = { shift_data(N, D, "PH") : past_date(D) }.
 % Max number of public holiday offs
-max_past_public_holiday_offs(X) :- 
+max_past_public_holiday_offs(X) :-
     X = #max { Y : num_past_public_holiday_offs(N, Y), staff(N) }.
 
 % The number of consecutive days off (2 or more) in past for Nurse N
@@ -224,12 +226,12 @@ num_past_consecutive_rests(N, X) :-
             past_date(D+2),
             work_shift(S0),
             rest_shift(S1),
-            rest_shift(S2)            
+            rest_shift(S2)
         }.
-% The number of consecutive days off 
+% The number of consecutive days off
 max_past_consecutive_rests(X) :- X = #max { Y : num_past_consecutive_rests(N, Y), staff(N) }.
 
-%* 
+%*
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % シフトの種類
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -241,7 +243,7 @@ night_working_shift("J";"S";"★";"☆").
 % 週休シフト
 weekly_holiday_shift("○").
 % 祝日シフト
-national_holiday_shift("◎"). 
+national_holiday_shift("◎").
 % ソフト休暇シフト
 soft_holiday_shift("年";"健").
 % ハード休暇シフト（そもそも部署にいない，週休調整の対象）
@@ -290,7 +292,7 @@ working_dates_bounds(N, LB, UB) :-
 % 看護師ごとの週休の数
 % TODO: 場合によっては設定ファイルで入力してもらったほうがよい（異動前に週休をとった回数が規定通りとは限らない）
 weekly_holiday_bounds(N, LB, UB) :-
-    staff(N), table_width(WIDTH), 
+    staff(N), table_width(WIDTH),
     num_hard_holiday_dates(N, HH),
     default_weekly_holidays(DWH),
     LB = @weekly_holidays_lb(WIDTH, HH, DWH),
@@ -300,26 +302,26 @@ weekly_holiday_bounds(N, LB, UB) :-
     %UB = #max {CUB; RWH}.     % 希望シフトで週休が CUB を超えていた場合は，それを優先
 
 % 看護師ごとの祝日の数
-national_holiday_date(N, D, W) :- 
-    staff(N), date(D, W), national_holiday(D, W), 
+national_holiday_date(N, D, W) :-
+    staff(N), date(D, W), national_holiday(D, W),
     not soft_holiday_date(N, D, W), not hard_holiday_date(N, D, W).
 num_national_holiday_dates(N, X) :-
     staff(N), X = { national_holiday_date(N, D, W) }.
 
 % 看護師ごとのソフト休暇シフトの数
-soft_holiday_date(N, D, W) :- 
+soft_holiday_date(N, D, W) :-p
     staff(N), date(D, W), staff_request(N, D, S), soft_holiday_shift(S).
 num_soft_holiday_dates(N, X) :-
     staff(N), X = { soft_holiday_date(N, D, W) }.
 
 % 看護師ごとのハード休暇シフトの数
-hard_holiday_date(N, D, W) :- 
+hard_holiday_date(N, D, W) :-
     staff(N), date(D, W), staff_request(N, D, S), hard_holiday_shift(S).
 num_hard_holiday_dates(N, X) :-
     staff(N), X = { hard_holiday_date(N, D, W) }.
 
 % 看護師ごとのビジネスシフトの数
-business_date(N, D, W) :- 
+business_date(N, D, W) :-
     staff(N), date(D, W), staff_request(N, D, S), business_shift(S).
 num_business_dates(N, X) :-
     staff(N), X = { business_date(N, D, W) }.
@@ -395,11 +397,11 @@ point_hard_ub(G, S, D, B) :-
     date(D,_), national_holiday(D), point_dweek_hard_ub(G, S, "祝日", B).
 
 %% 担当可能・不能なシフト
-pos_def_request(N, D, S) :- 
+pos_def_request(N, D, S) :-
     pos_shift(N, W, S), date(D, W), not national_holiday(D).
 pos_def_request(N, D, S) :-
     pos_shift(N, "祝", S), date(D), national_holiday(D).
-neg_def_request(N, D, S) :- 
+neg_def_request(N, D, S) :-
     neg_shift(N, W, S), date(D, W). %, not national_holiday(D). 担当不能シフトは祝日であっても，指定曜日は担当不可とする
 neg_def_request(N, D, S) :-
     neg_shift(N, "祝", S), date(D), national_holiday(D).
@@ -458,33 +460,33 @@ ext_assigned(N, D, S) :- staff(N, _, _, CD, _), next_date(D), shift_data(CD, _, 
 % 過去のシフトの担当回数データの生成
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 看護師 N がシフト S を担当した回数 X
-num_past_shifts(N, S, X) :- 
-    staff(N, _, _, CD, _), shift(S), 
+num_past_shifts(N, S, X) :-
+    staff(N, _, _, CD, _), shift(S),
     X = { shift_data(CD, _, FD, S) : first_full_date(FFD), FD < FFD }.
 
-% 看護師 N の週末休暇数 
+% 看護師 N の週末休暇数
 num_past_weekend_offs(N, X) :-
-    staff(N, _, _, CD, _), 
+    staff(N, _, _, CD, _),
     X = { shift_data(CD, _, FD1, S1) : shift_data(CD, _, FD2, S2), weekend(FD1, FD2), first_full_date(FFD), FD2 < FFD, regular_holiday_shift(S1), regular_holiday_shift(S2) }.
 % 週末休暇数の最大値
 max_past_weekend_offs(X) :- X = #max { Y : num_past_weekend_offs(N, Y), staff(N) }.
 
-% 看護師 N の祝日休暇数 
+% 看護師 N の祝日休暇数
 num_past_national_holiday_offs(N, X) :-
-    staff(N, _, _, CD, _), 
+    staff(N, _, _, CD, _),
     X = { shift_data(CD, _, FD, "◎") : first_full_date(FFD), FD < FFD, national_holiday(FD) }.
 % 祝日休暇数の最大値
 max_past_national_holiday_offs(X) :- X = #max { Y : num_past_national_holiday_offs(N, Y), staff(N) }.
 
 % 看護師 N の２連続休暇数（理想の上限は看護師ごとに異なるため，平等化が大変．いったん保留）
 % num_past_double_reg_holidays(N, X) :-
-%     staff(N, _, _, CD, _), 
+%     staff(N, _, _, CD, _),
 %     X = { shift_data(CD, _, FD1, S1) : regular_holiday_shift(S1), next_date(FD1, FD2), shift_data(CD, _, FD2, S2), regular_holiday_shift(S2), first_full_date(FFD), FD2 < FFD }.
 % 看護師 N の連続休暇数（２連休以上）の回数算出
 % TODO: 所属日数に応じた正規化が必要
 num_past_consecutive_holidays(N, X) :-
-    staff(N, _, _, CD, _), 
-    X = { shift_data(CD, _, FD1, S1) :             
+    staff(N, _, _, CD, _),
+    X = { shift_data(CD, _, FD1, S1) :
             next_date(FD1, FD2),
             next_date(FD2, FD3),
             first_full_date(FFD), FD3 < FFD,
@@ -494,7 +496,7 @@ num_past_consecutive_holidays(N, X) :-
 
             working_shift(S1),
             regular_holiday_shift(S2),
-            regular_holiday_shift(S3)            
+            regular_holiday_shift(S3)
         }.
 % 連続休暇数の最大値
 max_past_consecutive_holidays(X) :- X = #max { Y : num_past_consecutive_holidays(N, Y), staff(N) }.
