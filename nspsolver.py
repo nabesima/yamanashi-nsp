@@ -39,6 +39,7 @@ class NSPSolver:
         self.stats = stats
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
+        self.soften_hard = False
 
     def load_programs(self):
         """
@@ -79,6 +80,7 @@ class NSPSolver:
                     print("Hard constraints are relaxed to soft ones.")
                     stop_event.clear()
                     assumptions = enable_soften_hard
+                    self.soften_hard = True
                     continue
                 break
 
@@ -126,7 +128,19 @@ class NSPSolver:
         elapsed = time.time() - self.start_time
 
         header = f"Answer: {model.number}, Cost: {' '.join(map(str, model.cost))}, Elapsed: {elapsed:.1f}s"
+        if self.soften_hard:
+            header += ", Soften hard constraints"
         print(header)
+
+        if self.output:
+            atoms = "\n".join([str(atom) + "." for atom in model.symbols(atoms=True)])
+            with open(self.output, 'w') as f:
+                fcntl.flock(f, fcntl.LOCK_EX)
+                try:
+                    f.write(f"header(\"{header}\").\n")
+                    f.write(atoms)
+                finally:
+                    fcntl.flock(f, fcntl.LOCK_UN)
 
         if self.show_model == "show":
             print("Shown Atoms:")
@@ -141,16 +155,6 @@ class NSPSolver:
                 print_shift_table(table)
             else:
                 print("Error: model contains no shift assignments (ext_assigned/3).")
-
-        if self.output:
-            atoms = "\n".join([str(atom) + "." for atom in model.symbols(atoms=True)])
-            with open(self.output, 'w') as f:
-                fcntl.flock(f, fcntl.LOCK_EX)
-                try:
-                    f.write(f"header(\"{header}\").\n")
-                    f.write(atoms)
-                finally:
-                    fcntl.flock(f, fcntl.LOCK_UN)
 
     def on_finish(self, result):
         stop_event.set()

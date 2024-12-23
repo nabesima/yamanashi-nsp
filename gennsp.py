@@ -33,7 +33,7 @@ class StaffGroup:
     def to_asp(self, out):
         print(f'staff_group("{self.name}").', file=out)
         for staff in self.members:
-            print(f'staff_group("{self.name}", {staff.no}).')
+            print(f'staff_group("{self.name}", {staff.no}).', file=out)
 
 @dataclass
 class Dates:
@@ -180,6 +180,25 @@ class StaffRequest:
     def to_asp(self, out):
         print(self.to_string(), file=out)
 
+@dataclass
+class Pattern:
+    shifts: list[str]
+
+    def __post_init__(self):
+        self.name = "-".join(self.shifts)
+
+    def to_asp(self, out):
+        print(f'pattern("{self.name}", {len(self.shifts)}).', file=out)
+        for idx, shift in enumerate(self.shifts):
+            print(f'pattern("{self.name}", {idx}, "{shift}").', file=out)
+
+@dataclass
+class ForbiddenPattern:
+    pattern: Pattern
+
+    def to_asp(self, out):
+        print(f'forbidden_pattern("{self.pattern.name}").')
+
 class NSP:
     def __init__(self):
         self.staffs = []
@@ -193,6 +212,8 @@ class NSP:
         self.vertical_constraint_types = []
         self.consecutive_work_days = None
         self.staff_requests = []
+        self.shift_patterns = []
+        self.forbidden_patterns = []
 
     def set_width(self, num_days: int, start_date: str = "2025-04-01"):
         self.dates = Dates(start_date, num_days)
@@ -254,6 +275,13 @@ class NSP:
         self.staff_requests.append(req)
         return True
 
+    def add_forbidden_pattern(self, shifts: list[str]):
+        p = Pattern(shifts)
+        if p not in self.shift_patterns:
+            self.shift_patterns.append(p)
+        if p not in self.forbidden_patterns:
+            self.forbidden_patterns.append(ForbiddenPattern(p))
+
     def set_default_setting(self, num_staffs:int, num_days: int, start_date: str, consec_work_days: int, staff_req: float):
         self.set_width(num_days, start_date)
         self.set_default_staffs(num_staffs)
@@ -261,6 +289,7 @@ class NSP:
         self.set_default_staffs_constraints()
         self.consecutive_work_days = consec_work_days
         self.set_default_staff_requests(staff_req)
+        self.set_default_forbbiden_patterns()
 
     def set_default_staffs(self, num):
 
@@ -358,6 +387,15 @@ class NSP:
                 if self.add_staff_request(pos, staff, date, shift):
                     break
 
+    def set_default_forbbiden_patterns(self):
+        self.add_forbidden_pattern(["LD", "LD"])
+        self.add_forbidden_pattern(["SE" ,"SN", "SE", "SN"])
+        self.add_forbidden_pattern(["LD", "D"])
+        self.add_forbidden_pattern(["LM", "LD"])
+        self.add_forbidden_pattern(["LM", "D"])
+        # test
+        self.add_forbidden_pattern(["WR", "WR"])
+
     def to_asp(self, out):
         print("% Staffs -----------------------------------------", file=out)
         for staff in self.staffs:
@@ -383,6 +421,12 @@ class NSP:
         if self.consecutive_work_days:
             print("% Maximum consecutive working days", file=out)
             print(f"consecutive_work_ub({self.consecutive_work_days}).", file=out)
+        print("% Shift patterns", file=out)
+        for p in self.shift_patterns:
+            p.to_asp(out)
+        print("% Forbidden patterns", file=out)
+        for p in self.forbidden_patterns:
+            p.to_asp(out)
         print("% Staff requests ---------------------------------", file=out)
         for r in self.staff_requests:
             r.to_asp(out)

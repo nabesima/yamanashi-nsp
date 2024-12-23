@@ -129,14 +129,36 @@ has_next_work_day(S) :-
 %----------------------------------------------------------------------
 
 % positive requested shift must be assigned
-violation(hard, pos_request(N, D)) :-
+violation(soft, pos_request(N, D)) :-
     pos_request(N, D),
     not 1 { ext_assigned(N, D, S) : pos_request(N, D, S) } 1.
 
 % negative requested shift must not be assigned
-violation(hard, neg_request(N, D)) :-
+violation(soft, neg_request(N, D)) :-
     neg_request(N, D),
     1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
+
+%----------------------------------------------------------------------
+% Constraints on forbidden shift patterns
+%----------------------------------------------------------------------
+
+pattern_occured(PID, N, D, D+LEN-1) :-
+    pattern(PID, LEN), staff(N), base_date(D),
+    ext_assigned(N, D + IDX, S) : pattern(PID, IDX, S), not rest_shift(S) ;
+    ext_assigned(N, D + IDX, ("WR";"PH")) : pattern(PID, IDX, "WR").
+
+% Pattern assigned by the staff's request
+requested_pattern(PID, N, BD, ED) :-
+    pattern_occured(PID, N, BD, ED),
+    pos_request(N, BD + IDX, S) : pattern(PID, IDX, S), not rest_shift(S) ;
+    pos_request(N, BD + IDX, ("WR";"PH")) : pattern(PID, IDX, "WR").
+
+% Forbidden shift patterns are allowed only if they are requested.
+violation(soft, forbidden_pattern(N, BD, PID)) :-
+    forbidden_pattern(PID),
+    pattern_occured(PID, N, BD, ED),
+    not requested_pattern(PID, N, BD, ED),
+    date((BD;ED)).
 
 %----------------------------------------------------------------------
 % Auxiliary predicates
@@ -189,6 +211,7 @@ cause_type(shift_ub(N, SG)) :- staff(N), shift_group(SG).
 cause_type(consecutive_work_days(N, D)) :- staff(N), base_date(D).
 cause_type(pos_request(N, D)) :- staff(N), date(D).
 cause_type(neg_request(N, D)) :- staff(N), date(D).
+cause_type(forbidden_pattern(N, D, PID)) :- staff(N), date(D), forbidden_pattern(PID).
 
 % if there is no department-specific priority, use the defualt priority
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).

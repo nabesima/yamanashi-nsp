@@ -229,7 +229,7 @@ def make_penalty_map(penalties):
             day = args[2].number
             row = (staff_group, shift_group, "#S")
             add(row, day, p)
-        elif cause.match("consecutive_work_days", 2) or cause.match("pos_request", 2) or cause.match("neg_request", 2):
+        elif cause.match("consecutive_work_days", 2) or cause.match("pos_request", 2) or cause.match("neg_request", 2) or cause.match("forbidden_pattern", 3):
             staff = args[0].number
             day = args[1].number
             add(staff, day, p)
@@ -355,12 +355,14 @@ def print_shift_table(table, color=True):
     if len(table.penalties) > 0:
         for p in table.penalties:
             c = p['Cause']
+            args = c.arguments
             if c.match("pos_request", 2):
-                args = c.arguments
                 staff = args[0].number
                 date = args[1].number
                 p['Req'] = ','.join(table.request_map[staff][date]['pos']['Shift'])
                 p['Res'] = table.assigned_map[staff][date]
+            elif c.match("forbidden_pattern", 3):
+                p['Req'] = p['Res'] = args[2].string
 
 
         pf = pd.DataFrame(table.penalties)
