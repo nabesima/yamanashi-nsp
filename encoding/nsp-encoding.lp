@@ -4,7 +4,7 @@
 
 % Work shift
 LB { assigned(N, D) : workable_date(N, D) } UB :-
-    staff(N), work_days_bounds(N, LB, UB), not soft_all.
+    staff(N), work_days_bounds(N, LB, UB), not soften_hard.
 % violation(hard, num_work_days(N)) :-
 %     staff(N), work_days_bounds(N, LB, UB),
 %     not LB { assigned(N, D) : workable_date(N, D) }.
@@ -12,9 +12,10 @@ LB { assigned(N, D) : workable_date(N, D) } UB :-
 % assigned/2 has exactly one work shift
 1 { assigned(N, D, S) : work_shift(S) } 1 :- assigned(N, D).
 
-% Weekly rest (necessary?)
+% Weekly rest (Required because work days + weekly rest days != width
+% when there are public holidays or requested leaves)
 LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :-
-    weekly_rest_bounds(N, LB, UB), not soft_all.
+    weekly_rest_bounds(N, LB, UB), not soften_hard.
 
 %----------------------------------------------------------------------
 % Vertical constraints
@@ -104,12 +105,12 @@ has_next_work_day(S) :-
 %----------------------------------------------------------------------
 
 % positive requested shift must be assigned
-violation(hard, pos_request(N, D)) :-
+violation(soft, pos_request(N, D)) :-
     pos_request(N, D),
     not 1 { ext_assigned(N, D, S) : pos_request(N, D, S) } 1.
 
 % negative requested shift must not be assigned
-violation(hard, neg_request(N, D)) :-
+violation(soft, neg_request(N, D)) :-
     neg_request(N, D),
     1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
 
@@ -131,8 +132,8 @@ work_date(N, D) :- ext_assigned(N, D, S), business_shift(S).
 %----------------------------------------------------------------------
 % Hard constraints
 %----------------------------------------------------------------------
-:- violation(hard, _, _, _).
-:- violation(hard, _).
+:- violation(hard, _, _, _), not soften_hard.
+:- violation(hard, _), not soften_hard.
 
 %----------------------------------------------------------------------
 % Penalty
