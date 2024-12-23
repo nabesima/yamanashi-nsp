@@ -2,18 +2,21 @@
 import argparse
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 import fcntl
 import os
 import sys
 import time
 import clingo
 from colorama import Back, Fore, Style
+import colorama
 import pandas as pd
 
 class ShiftTable:
-    def __init__(self, df, title, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map):
+    def __init__(self, df, title, first_date, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map):
         self.df = df
         self.title = title
+        self.first_date = first_date
         self.width = width
         self.df_shifts = df_shifts
         self.df_staffs = df_staffs
@@ -38,6 +41,8 @@ def recursive_defaultdict():
 
 def make_shift_table(atoms):
     header = None
+    first_date = None
+    width = None
     assigneds = []
     dates = []
     staffs = []
@@ -50,6 +55,8 @@ def make_shift_table(atoms):
         args = atom.arguments
         if atom.match("header", 1):
             header = args[0].string
+        elif atom.match("first_full_date", 1):
+            first_date = datetime.strptime(str(args[0].number), "%Y%m%d")
         elif atom.match("table_width", 1):
             width = args[0].number
         elif atom.match("ext_assigned", 3):
@@ -154,7 +161,8 @@ def make_shift_table(atoms):
     gdf = pd.DataFrame(staff_groups)
     #print(gdf)
     # Add staff group to df
-    mdf = pd.merge(df, gdf, on='No', how='outer')
+    mdf = pd.merge(cur_df, gdf, on='No', how='outer')
+    # print(mdf)
     # Add staff point to df
     sdf = pd.DataFrame(staffs, columns=['No', 'Name', 'Job', 'ID', 'Point'])
     sdf = sdf[["No", "Point"]]
@@ -183,7 +191,6 @@ def make_shift_table(atoms):
             mdf[date] = 0
     mdf = mdf.sort_index(axis='columns')
     df_staffs = mdf.rename(index={'Staffs': '#S', 'Points': '#P'})
-    #print(df_staffs)
 
     # ------------------------------------------------------------
     # Make the penalty mapping
@@ -202,7 +209,7 @@ def make_shift_table(atoms):
     for r in requests:
         request_map[r["No"]][r["Date"]][r["Type"]].setdefault("Shift", []).append(r["Shift"])
 
-    return ShiftTable(df_tbl, header, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map)
+    return ShiftTable(df_tbl, header, first_date, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map)
 
 def make_penalty_map(penalties):
     map = {}
@@ -238,7 +245,7 @@ def make_penalty_map(penalties):
 
     return map
 
-def print_shift_table(table, color=True):
+def print_shift_table(table):
 
     def has_penalty(row, col):
         if row in table.penalty_map:
@@ -246,8 +253,6 @@ def print_shift_table(table, color=True):
         return False
 
     def format_main_cell(val, row, col):
-        if not color:
-            return f"{str(val):<2}"
         w = col_headers[2][col]
         c = ""
         if row < 3:
@@ -282,6 +287,10 @@ def print_shift_table(table, color=True):
         [format_main_cell(value, row_idx, col_idx) for col_idx, value in enumerate(row)]
         for row_idx, row in enumerate(main_table)
     ]
+    # Add the current month
+    if table.first_date:
+        month = (table.first_date - timedelta(days=7)).month
+        main_table[1][0] = ["Ja", "Fe", "Ma", "Ap", "My", "Ju", "Jl", "Au", "Se", "Oc", "No", "De"][month-1]
 
     def format_right_cell(val, row, shift_group, width):
         c = ""
@@ -376,7 +385,7 @@ def print_shift_table(table, color=True):
         print("  None")
     print()
 
-def read_model(file, color):
+def read_model(file):
     try:
         with open(file, 'r') as f:
             fcntl.flock(f, fcntl.LOCK_SH)
@@ -391,12 +400,12 @@ def read_model(file, color):
     atoms = parse_model(content)
     table = make_shift_table(atoms)
     if table:
-        print_shift_table(table, color)
+        print_shift_table(table)
     else:
         print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
 
 
-def monitor_file(file, interval, color):
+def monitor_file(file, interval):
     """Monitor the file for changes and reload when updated."""
     last_modified = None
     while True:
@@ -404,7 +413,7 @@ def monitor_file(file, interval, color):
             current_modified = os.path.getmtime(file)
             if current_modified != last_modified:
                 last_modified = current_modified
-                read_model(file, color)
+                read_model(file)
             time.sleep(interval)
         except FileNotFoundError:
             print(f"File '{file}' not found. Waiting for it to be created...")
@@ -425,15 +434,17 @@ def parse_model(content):
 def main():
     parser = argparse.ArgumentParser(description="Read a model from a file and display the shift table.")
     parser.add_argument("file", nargs="?", default="found-model.lp", help="Model file to read. Defaults to 'found-model.lp'.")
-    parser.add_argument("-m", "--monochrome", action="store_true", help="Display output in monochrome (no colors).")
+    parser.add_argument("--mono", action="store_true", help="Display output in monochrome (no colors).")
     parser.add_argument("-f", "--follow", type=float, nargs="?", const=1.0, help="Monitor the file for changes and reload when updated. Specify interval in seconds (default: 1 second).")
 
     args = parser.parse_args()
 
+    colorama.init(strip=args.mono)
+
     if args.follow:
-        monitor_file(args.file, interval=args.follow, color=not args.monochrome)
+        monitor_file(args.file, interval=args.follow)
     else:
-        read_model(args.file, color=not args.monochrome)
+        read_model(args.file)
 
 if __name__ == "__main__":
     main()

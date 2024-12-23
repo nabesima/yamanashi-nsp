@@ -8,6 +8,9 @@ import threading
 import time
 import clingo
 import argparse
+
+from colorama import Fore, Style
+import colorama
 from showmodel import make_shift_table, print_shift_table
 
 # An event flag to signal when the solving process should stop (e.g., triggered by Ctrl+C).
@@ -129,8 +132,9 @@ class NSPSolver:
 
         header = f"Answer: {model.number}, Cost: {' '.join(map(str, model.cost))}, Elapsed: {elapsed:.1f}s"
         if self.soften_hard:
-            header += ", Soften hard constraints"
-        print(header)
+            header = Fore.YELLOW + header + ", Soften hard constraints" + Style.RESET_ALL
+        if self.verbose > 0:
+            print(header)
 
         if self.output:
             atoms = "\n".join([str(atom) + "." for atom in model.symbols(atoms=True)])
@@ -218,8 +222,9 @@ def main():
     )
     parser.add_argument("-m", action="store_true", help="Display only atoms specified by #show.")
     parser.add_argument("-M", action="store_true", help="Display all atoms.")
-    parser.add_argument("-t", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
+    parser.add_argument("-s", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
     parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")
+    parser.add_argument("--mono", action="store_true", help="Display output in monochrome (no colors).")
     parser.add_argument(
         "-v", "--verbose",
         nargs="?",  # Optional argument with a default value if specified without a value
@@ -229,7 +234,7 @@ def main():
         help="Set verbosity level (0: silent, 1: basic, 2: detailed)"
     )
     parser.add_argument(
-        "-s", "--stats",
+        "--stats",
         nargs="?",  # Optional argument with a default value if specified without a value
         const=1,  # Default to 1 if -s is specified without a value
         type=int,  # Ensure the verbose level is an integer
@@ -246,7 +251,10 @@ def main():
     if args.M:
         show_model = "all"
 
-    # シグナルハンドラを登録
+    # Set color mode
+    colorama.init(strip=args.mono)
+
+    # Add signal hander
     signal.signal(signal.SIGINT, signal_handler)
 
     if args.verbose > 0:
@@ -263,7 +271,7 @@ def main():
         output=args.output,
         clingo_options=unknown_args,
         show_model=show_model,
-        show_table=args.t,
+        show_table=args.s,
         verbose=args.verbose,
         stats=args.stats,
     )

@@ -43,8 +43,7 @@ class Dates:
     def __post_init__(self):
         self.start_date = datetime.strptime(self.str_start_date, "%Y-%m-%d")
 
-    def choice(self) -> datetime:
-        d = random.randrange(0, self.width)
+    def get(self, d: int) -> datetime:
         return self.start_date + timedelta(days=d)
 
     def is_holiday(self, d: Union[int, datetime]):
@@ -377,7 +376,7 @@ class NSP:
         for _ in range(0, num_req):
             while True:
                 staff = random.choice(self.staffs)
-                date = self.dates.choice()
+                date = self.dates.get(random.randint(0, self.dates.width + 7 - 1)) # Include the first week of the following month
                 shift = random.choice(req_shifts)
                 # Change WR to PH if the date is holiday
                 if shift == "WR" and self.dates.is_holiday(date):
