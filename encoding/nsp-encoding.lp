@@ -153,15 +153,18 @@ penalty(TYPE, CAUSE, 0, 0, 1, P) :-
 % for obj function
 penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
 
-priority(staff_lb(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
-priority(staff_ub(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
-priority(point_lb(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
-priority(point_ub(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
-priority(shift_lb(N, SG), 1) :- staff(N), shift_group(SG).
-priority(shift_ub(N, SG), 1) :- staff(N), shift_group(SG).
-priority(consecutive_work_days(N, D), 1) :- staff(N), base_date(D).
-priority(pos_request(N, D), 2) :- staff(N), date(D).
-priority(neg_request(N, D), 2) :- staff(N), date(D).
+cause_type(staff_lb(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
+cause_type(staff_ub(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
+cause_type(point_lb(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
+cause_type(point_ub(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
+cause_type(shift_lb(N, SG)) :- staff(N), shift_group(SG).
+cause_type(shift_ub(N, SG)) :- staff(N), shift_group(SG).
+cause_type(consecutive_work_days(N, D)) :- staff(N), base_date(D).
+cause_type(pos_request(N, D)) :- staff(N), date(D).
+cause_type(neg_request(N, D)) :- staff(N), date(D).
+
+% if there is no department-specific priority, use the defualt priority
+priority(T, 1) :- cause_type(T), not dep_priority(T, _).
 
 %----------------------------------------------------------------------
 % Objective functions
