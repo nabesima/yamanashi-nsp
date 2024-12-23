@@ -61,17 +61,26 @@ class NSPSolver:
         self.control.ground([("base", [])], context=NSPContext())
 
         # Solve the program
-        # result = self.control.solve(on_model=self.on_model)
-        # print(f"Solve Result: {result.satisfiable}")
-        with self.control.solve(on_model=self.on_model, on_finish=self.on_finish, async_=True) as handle:
-            with condition:
-                while not stop_event.is_set():
-                    condition.wait()  # Wait for an event to be notified (e.g., model found or stop signal)
-                    if handle.wait(0):  # Check if the solving process is complete
-                        break
-            if stop_event.is_set():
-                handle.cancel()  # Cancel the solving process if a stop signal was set
-            result = handle.get()  # Retrieve the final solving result
+        disable_soften_hard = [(clingo.Function("soften_hard"), False)]  # Hard constraints are enabled
+        enable_soften_hard  = [(clingo.Function("soften_hard"), True)]   # Hard constraints are relaxed to soft
+        assumptions = disable_soften_hard
+        while True:
+            with self.control.solve(assumptions=assumptions, on_model=self.on_model, on_finish=self.on_finish, async_=True) as handle:
+                with condition:
+                    while not stop_event.is_set():
+                        condition.wait()  # Wait for an event to be notified (e.g., model found or stop signal)
+                        if handle.wait(0):  # Check if the solving process is complete
+                            break
+                if stop_event.is_set():
+                    handle.cancel()  # Cancel the solving process if a stop signal was set
+                result = handle.get()  # Retrieve the final solving result
+                if result.unsatisfiable and assumptions == disable_soften_hard:
+                    print("UNSATISFIABLE")
+                    print("Hard constraints are relaxed to soft ones.")
+                    stop_event.clear()
+                    assumptions = enable_soften_hard
+                    continue
+                break
 
         def get_cost():
             s = self.control.statistics['summary']

@@ -216,7 +216,10 @@ def make_penalty_map(penalties):
     for p in penalties:
         cause = p['Cause']
         args = cause.arguments
-        if cause.match("shift_lb", 2) or cause.match("shift_ub", 2):
+        if cause.match("work_days_lb", 1) or cause.match("work_days_ub", 1) or cause.match("weekly_rest_lb", 1) or cause.match("weekly_rest_ub", 1):
+            staff = args[0].number
+            add(staff, -8, p)
+        elif cause.match("shift_lb", 2) or cause.match("shift_ub", 2):
             staff = args[0].number
             shift_group = args[1].string
             add(staff, shift_group, p)

@@ -1,21 +1,45 @@
 %----------------------------------------------------------------------
-% Assigns shifts within the specified bound for each nurse
+% A nurse can work on a workable day
+%----------------------------------------------------------------------
+{ assigned(N, D) : workable_date(N, D) } :- staff(N).
+
+%----------------------------------------------------------------------
+% Assigns shifts within the working days
 %----------------------------------------------------------------------
 
-% Work shift
-LB { assigned(N, D) : workable_date(N, D) } UB :-
-    staff(N), work_days_bounds(N, LB, UB), not soften_hard.
-% violation(hard, num_work_days(N)) :-
-%     staff(N), work_days_bounds(N, LB, UB),
-%     not LB { assigned(N, D) : workable_date(N, D) }.
+% A nurse must work at least LB days
+violation(hard, work_days_lb(N), LB, X) :-
+    staff(N), work_days_bounds(N, LB, UB),
+    X = { assigned(N, D) : workable_date(N, D) },
+    X < LB.
+% A nurse must work at most UB days
+violation(hard, work_days_ub(N), UB, X) :-
+    staff(N), work_days_bounds(N, LB, UB),
+    X = { assigned(N, D) : workable_date(N, D) },
+    UB < X.
+% LB { assigned(N, D) : workable_date(N, D) } UB :-
+%     staff(N), work_days_bounds(N, LB, UB), not soften_hard.
 
 % assigned/2 has exactly one work shift
 1 { assigned(N, D, S) : work_shift(S) } 1 :- assigned(N, D).
 
+%----------------------------------------------------------------------
+% Do not assigns shifts within the weekly rest days
+%----------------------------------------------------------------------
+
 % Weekly rest (Required because work days + weekly rest days != width
 % when there are public holidays or requested leaves)
-LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :-
-    weekly_rest_bounds(N, LB, UB), not soften_hard.
+violation(hard, weekly_rest_lb(N), LB, X) :-
+    weekly_rest_bounds(N, LB, UB),
+    X = { not assigned(N, D) : weekly_rest_date(N, D) },
+    X < LB.
+violation(hard, weekly_rest_ub(N), UB, X) :-
+    weekly_rest_bounds(N, LB, UB),
+    X = { not assigned(N, D) : weekly_rest_date(N, D) },
+    UB < X.
+
+% LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :-
+%     weekly_rest_bounds(N, LB, UB), not soften_hard.
 
 %----------------------------------------------------------------------
 % Vertical constraints
@@ -105,12 +129,12 @@ has_next_work_day(S) :-
 %----------------------------------------------------------------------
 
 % positive requested shift must be assigned
-violation(soft, pos_request(N, D)) :-
+violation(hard, pos_request(N, D)) :-
     pos_request(N, D),
     not 1 { ext_assigned(N, D, S) : pos_request(N, D, S) } 1.
 
 % negative requested shift must not be assigned
-violation(soft, neg_request(N, D)) :-
+violation(hard, neg_request(N, D)) :-
     neg_request(N, D),
     1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
 
@@ -135,22 +159,27 @@ work_date(N, D) :- ext_assigned(N, D, S), business_shift(S).
 :- violation(hard, _, _, _), not soften_hard.
 :- violation(hard, _), not soften_hard.
 
+% soften_hard is controlled by the nspsolver.
+{ soften_hard }.
+
 %----------------------------------------------------------------------
 % Penalty
 %----------------------------------------------------------------------
 penalty(TYPE, CAUSE, LIM, VAL, W, P) :-
     violation(TYPE, CAUSE, LIM, VAL),
-    TYPE = soft,
     W = (LIM - VAL) * (LIM - VAL),
-    priority(CAUSE, P).
+    priority(TYPE, CAUSE, P).
 penalty(TYPE, CAUSE, 0, 0, 1, P) :-
     violation(TYPE, CAUSE),
-    TYPE = soft,
-    priority(CAUSE, P).
+    priority(TYPE, CAUSE, P).
 
 % for obj function
 penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
 
+cause_type(work_days_lb(N)) :- staff(N).
+cause_type(work_days_ub(N)) :- staff(N).
+cause_type(weekly_rest_lb(N)) :- staff(N).
+cause_type(weekly_rest_ub(N)) :- staff(N).
 cause_type(staff_lb(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
 cause_type(staff_ub(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
 cause_type(point_lb(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
@@ -162,7 +191,8 @@ cause_type(pos_request(N, D)) :- staff(N), date(D).
 cause_type(neg_request(N, D)) :- staff(N), date(D).
 
 % if there is no department-specific priority, use the defualt priority
-priority(T, 1) :- cause_type(T), not dep_priority(T, _).
+priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
+priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _).
 
 %----------------------------------------------------------------------
 % Objective functions
