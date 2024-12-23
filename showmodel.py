@@ -247,6 +247,11 @@ def make_penalty_map(penalties):
 
 def print_shift_table(table):
 
+    def has_request(row, col):
+        if row in table.request_map:
+            return col in table.request_map[row]
+        return False
+
     def has_penalty(row, col):
         if row in table.penalty_map:
             return col in table.penalty_map[row]
@@ -273,6 +278,8 @@ def print_shift_table(table):
                 c = Style.DIM
             else:
                 c = Fore.MAGENTA
+        if has_request(row - 2, col - 8):
+            c = Fore.BLACK + Back.GREEN
         if has_penalty(row - 2, col - 8):
             c = Back.RED
         return c + str(val).center(2) + Style.RESET_ALL
