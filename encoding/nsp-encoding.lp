@@ -129,14 +129,19 @@ has_next_work_day(S) :-
 %----------------------------------------------------------------------
 
 % positive requested shift must be assigned
-violation(soft, pos_request(N, D)) :-
-    pos_request(N, D),
+violation(hard, pos_request(N, D)) :-
+    pos_request(N, D), date(D),
     not 1 { ext_assigned(N, D, S) : pos_request(N, D, S) } 1.
 
 % negative requested shift must not be assigned
-violation(soft, neg_request(N, D)) :-
-    neg_request(N, D),
+violation(hard, neg_request(N, D)) :-
+    neg_request(N, D), date(
+        D),
     1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
+
+% for next month, positive requested shift must be assigned
+1 { ext_assigned(N, D, S): pos_request(N, D, S) } 1 :-
+     pos_request(N, D), next_date(D).
 
 %----------------------------------------------------------------------
 % Constraints on forbidden shift patterns
