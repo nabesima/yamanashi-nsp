@@ -5,6 +5,7 @@
 %----------------------------------------------------------------------
 staff(ID) :- staff(ID, _, _, _, _).
 staff(ID, CD) :- staff(ID, _, _, CD, _).
+point(ID, P) :- staff(ID,  _, _, _, P).
 date(D) :- date(D, W).
 base_date(D) :- base_date(D, _, _).
 prev_date(D) :- prev_date(D, _).
@@ -17,6 +18,9 @@ full_date(FD, D) :- past_date(D, FD, _).
 % Shift data related
 %----------------------------------------------------------------------
 shift_data(N, D, S) :- shift_data(ID, _, FD, S), staff(N, ID), full_date(FD, D).
+
+% Suppresses warnings when there are no shift data
+shift_data(dummy, dummy, dummy, dummy).
 
 %----------------------------------------------------------------------
 % Previous and next month shifts
@@ -66,6 +70,9 @@ first_full_date(FD) :- base_date(0, FD, _).
 last_date(X)  :- X = #max { D : date(D, _) }.
 % Past dates
 past_date(D, PD, W) :- past_date(PD, W), first_full_date(FD), D = PD-FD.
+
+% Suppresses warnings when there are no public holidays
+public_holiday(dummy).
 
 %----------------------------------------------------------------------
 % Work, rest, business, leave and na dates
@@ -175,12 +182,22 @@ point_ub(hard_sp, NG, SG, D, V) :- date(D), public_holiday(D), point_dweek_hard_
 point_lb(soft, NG, SG, D, V) :- date(D), public_holiday(D), point_dweek_soft_lb(NG, SG, "Holiday", V).
 point_ub(soft, NG, SG, D, V) :- date(D), public_holiday(D), point_dweek_soft_ub(NG, SG, "Holiday", V).
 
-% Default positive/negative requests
+% Suppresses warnings when there are no point bound definition
+point_dweek_hard_lb(dummy, dummy, dummy, dummy).
+point_dweek_hard_ub(dummy, dummy, dummy, dummy).
+point_dweek_soft_lb(dummy, dummy, dummy, dummy).
+point_dweek_soft_ub(dummy, dummy, dummy, dummy).
+
+% Default positive/negative shifts
 % * Positive/negative requests take precedence over default positive/negative requests
 pos_def_request(N, D, S) :- pos_shift(N, W, S), date(D, W), not public_holiday(D).
-pos_def_request(N, D, S) :- pos_shift(N, "Ho", S), date(D), public_holiday(D).
+pos_def_request(N, D, S) :- pos_shift(N, "PH", S), date(D), public_holiday(D).
 neg_def_request(N, D, S) :- neg_shift(N, W, S), date(D, W), not public_holiday(D).
-neg_def_request(N, D, S) :- neg_shift(N, "Ho", S), date(D), public_holiday(D).
+neg_def_request(N, D, S) :- neg_shift(N, "PH", S), date(D), public_holiday(D).
+
+% Suppresses warnings when there are no positive/negative shifts
+pos_shift(dummy, dummy, dummy).
+neg_shift(dummy, dummy, dummy).
 
 %----------------------------------------------------------------------
 % Define LB and UB for soft and hard shift constraints
