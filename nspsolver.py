@@ -121,6 +121,8 @@ class NSPSolver:
                 print(f'Optimization : {get_cost()}')
             print(f'Time         : {s['times']['total']:.3f}s')
             print(f'CPU Time     : {s['times']['cpu']:.3f}s')
+            if s['concurrency'] > 1:
+                print(f'Threads      : {int(s['concurrency'])}')
 
         return result
 
