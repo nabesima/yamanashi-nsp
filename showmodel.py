@@ -200,7 +200,7 @@ def make_shift_table(atoms):
     # Make the request mapping for the explanation of penalties
     request_map = recursive_defaultdict()
     for r in requests:
-        request_map[r["No"]][r["Date"]][r["Type"]].setdefault("Shift", []).append(a["Shift"])
+        request_map[r["No"]][r["Date"]][r["Type"]].setdefault("Shift", []).append(r["Shift"])
 
     return ShiftTable(df_tbl, header, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map)
 
