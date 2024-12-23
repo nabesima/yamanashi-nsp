@@ -153,9 +153,15 @@ penalty(TYPE, CAUSE, 0, 0, 1, P) :-
 % for obj function
 penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
 
-% TODO
-priority(CAUSE,1) :- violation(soft, CAUSE, _, _).
-priority(CAUSE,1) :- violation(soft, CAUSE).
+priority(staff_lb(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
+priority(staff_ub(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
+priority(point_lb(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
+priority(point_ub(NG, SG, D), 1) :- staff_group(NG), shift_group(SG), date(D).
+priority(shift_lb(N, SG), 1) :- staff(N), shift_group(SG).
+priority(shift_ub(N, SG), 1) :- staff(N), shift_group(SG).
+priority(consecutive_work_days(N, D), 1) :- staff(N), base_date(D).
+priority(pos_request(N, D), 2) :- staff(N), date(D).
+priority(neg_request(N, D), 2) :- staff(N), date(D).
 
 %----------------------------------------------------------------------
 % Objective functions
