@@ -236,7 +236,7 @@ def make_penalty_map(penalties):
             day = args[2].number
             row = (staff_group, shift_group, "#S")
             add(row, day, p)
-        elif cause.match("consecutive_work_days", 2) or cause.match("pos_request", 2) or cause.match("neg_request", 2) or cause.match("forbidden_pattern", 3):
+        elif cause.match("consecutive_work_days", 2) or cause.match("pos_request", 2) or cause.match("neg_request", 2) or cause.match("forbidden_pattern", 3) or cause.match("next_shift", 3) or cause.match("prev_shift", 3):
             staff = args[0].number
             day = args[1].number
             add(staff, day, p)

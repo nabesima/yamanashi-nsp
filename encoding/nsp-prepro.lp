@@ -113,6 +113,11 @@ public_holiday(N, D) :-
     not leave_request(N, D),
     not na_request(N, D).
 
+% % Non_work_date = weekly_rest_date + public_holiday + leave_request
+% non_work_date(N, D) :- weekly_rest_date(N, D).
+% non_work_date(N, D) :- public_holiday(N, D).
+% non_work_date(N, D) :- leave_request(N, D).
+
 % Number of requested business days
 num_business_days(N, X) :-
     staff(N), X = { business_request(N, D) : staff(N), date(D) }.

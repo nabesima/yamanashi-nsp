@@ -45,4 +45,8 @@ rest_shift(SIGN) :- shift(rest, NAME, SIGN).
 business_shift(SIGN) :- shift(business, NAME, SIGN).
 leave_shift(SIGN) :- shift(leave, NAME, SIGN).
 na_shift(SIGN) :- shift(na, NAME, SIGN).
+
+non_work_shift(SIGN) :- rest_shift(SIGN).
+non_work_shift(SIGN) :- leave_shift(SIGN).
+
 shift(SIGN) :- shift(_, _, SIGN).

@@ -143,13 +143,6 @@ violation(hard, neg_request(N, D)) :-
 1 { ext_assigned(N, D, S): pos_request(N, D, S) } 1 :-
      pos_request(N, D), next_date(D).
 
-% % ソフト版：シフト希望がない場合にポジティブシフト以外が割り当てられていると矛盾
-% violation(soft, pos_request(N, D)) :-
-%     pos_def_request(N, D), not staff_request(N, D),
-%     not 1 { ext_assigned(N, D, S) : pos_def_request(N, D, S) } 1,
-%     date2fulldate(D, FD),
-%     _penalty("pos_def_request", PNL), _priority("pos_def_request", PRI), soft_all.
-
 %----------------------------------------------------------------------
 % Constraints on forbidden shift patterns
 %----------------------------------------------------------------------
@@ -166,11 +159,34 @@ requested_pattern(PID, N, BD, ED) :-
     pos_request(N, BD + IDX, ("WR";"PH")) : pattern(PID, IDX, "WR").
 
 % Forbidden shift patterns are allowed only if they are requested.
-violation(soft, forbidden_pattern(N, BD, PID)) :-
+violation(hard, forbidden_pattern(N, BD, PID)) :-
     forbidden_pattern(PID),
     pattern_occured(PID, N, BD, ED),
     not requested_pattern(PID, N, BD, ED),
     date((BD;ED)).
+
+%----------------------------------------------------------------------
+% Constraints on next shifts
+%----------------------------------------------------------------------
+
+violation(hard, next_shift(N, D, S)) :-
+    ext_assigned(N, D, S),
+    next_shift(S, _),
+    first_date(FD),
+    last_date(LD),
+    FD - 1 <= D, D <= LD,
+    not 1 { ext_assigned(N, D+1, NS) : next_shift(S, NS), not non_work_shift(NS) ;
+            ext_assigned(N, D+1, NS) : next_shift(S, "WR"), non_work_shift(NS);
+            not ext_assigned(N, D+1, _) : last_date(D) } 1.  % If nurse N has no assignment on D+1, any next shift can be assigned.
+
+violation(hard, prev_shift(N, D, S)) :-
+    ext_assigned(N, D, S),
+    prev_shift(S, _),
+    first_date(FD),
+    last_date(LD),
+    FD <= D, D <= LD + 1,
+    not 1 { ext_assigned(N, D-1, PS) : prev_shift(S, PS), not non_work_shift(PS) ;
+            ext_assigned(N, D-1, PS) : prev_shift(S, "WR"), non_work_shift(PS) } 1.
 
 %----------------------------------------------------------------------
 % Auxiliary predicates
@@ -224,10 +240,16 @@ cause_type(consecutive_work_days(N, D)) :- staff(N), base_date(D).
 cause_type(pos_request(N, D)) :- staff(N), date(D).
 cause_type(neg_request(N, D)) :- staff(N), date(D).
 cause_type(forbidden_pattern(N, D, PID)) :- staff(N), date(D), forbidden_pattern(PID).
+cause_type(next_shift(N, D, S)) :- staff(N), date(D), shift(S).
+cause_type(prev_shift(N, D, S)) :- staff(N), date(D), shift(S).
 
 % if there is no department-specific priority, use the defualt priority
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
 priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _).
+priority(soft, C, P) :- dep_priority(C, P).
+
+% test
+dep_priority(C, 2) :- cause_type(C), C = (staff_lb(_,_,_);staff_ub(_,_,_);point_lb(_,_,_);point_ub(_,_,_)).
 
 %----------------------------------------------------------------------
 % Objective functions
