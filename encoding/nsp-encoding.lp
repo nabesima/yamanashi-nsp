@@ -128,20 +128,27 @@ has_next_work_day(S) :-
 % Constraints on requested shifts
 %----------------------------------------------------------------------
 
-% positive requested shift must be assigned
+% positive requested shifts must be assigned
 violation(hard, pos_request(N, D)) :-
     pos_request(N, D), date(D),
     not 1 { ext_assigned(N, D, S) : pos_request(N, D, S) } 1.
 
-% negative requested shift must not be assigned
+% negative requested shifts must not be assigned
 violation(hard, neg_request(N, D)) :-
     neg_request(N, D), date(
         D),
     1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
 
-% for next month, positive requested shift must be assigned
+% for next month, positive requested shifts must be assigned
 1 { ext_assigned(N, D, S): pos_request(N, D, S) } 1 :-
      pos_request(N, D), next_date(D).
+
+% % ソフト版：シフト希望がない場合にポジティブシフト以外が割り当てられていると矛盾
+% violation(soft, pos_request(N, D)) :-
+%     pos_def_request(N, D), not staff_request(N, D),
+%     not 1 { ext_assigned(N, D, S) : pos_def_request(N, D, S) } 1,
+%     date2fulldate(D, FD),
+%     _penalty("pos_def_request", PNL), _priority("pos_def_request", PRI), soft_all.
 
 %----------------------------------------------------------------------
 % Constraints on forbidden shift patterns
