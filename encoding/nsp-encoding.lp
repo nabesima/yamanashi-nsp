@@ -186,7 +186,8 @@ violation(hard, prev_shift(N, D, S)) :-
     last_date(LD),
     FD <= D, D <= LD + 1,
     not 1 { ext_assigned(N, D-1, PS) : prev_shift(S, PS), not non_work_shift(PS) ;
-            ext_assigned(N, D-1, PS) : prev_shift(S, "WR"), non_work_shift(PS) } 1.
+            ext_assigned(N, D-1, PS) : prev_shift(S, "WR"), non_work_shift(PS) ;
+            not ext_assigned(N, D-1, _) : first_date(D) } 1.  % If nurse N has no assignment on D-1, any previous shift can be assigned.
 
 %----------------------------------------------------------------------
 % Auxiliary predicates
