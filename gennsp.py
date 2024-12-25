@@ -157,6 +157,7 @@ SHIFTS = {
 class StaffRequest:
     pos: bool
     staff: Staff
+    start_date: datetime
     date: datetime
     shift: str
 
@@ -173,8 +174,8 @@ class StaffRequest:
 
     def to_string(self):
         pos = "pos" if self.pos else "neg"
-        int_date = self.date.strftime("%Y%m%d")
-        return f'staff_{pos}_request("{self.staff.id}", {int_date}, "{self.shift}").'
+        diff = self.date - self.start_date
+        return f'staff_{pos}_request({self.staff.no}, {diff.days}, "{self.shift}").'
 
     def to_asp(self, out):
         print(self.to_string(), file=out)
@@ -284,7 +285,7 @@ class NSP:
         self.staff_bounds.append(StaffBound(btype, staff_group, shift_group, dweek_type, val))
 
     def add_staff_request(self, pos: bool, staff: Staff, date: datetime, shift: str):
-        req = StaffRequest(pos, staff, date, shift)
+        req = StaffRequest(pos, staff, self.dates.start_date, date, shift)
         for r in self.staff_requests:
             if req.is_conflict(r):
                 #print("  conflict: " + r.to_string())

@@ -36,17 +36,10 @@ ext_assigned(N, D, S) :- staff(N), next_date(D), shift_data(N, D, S).
 % Requested shifts
 %----------------------------------------------------------------------
 
-pos_request(N, D, S) :- staff_pos_request(ID, FD, S), staff(N, ID), full_date(FD, D).
-pos_request(N, D, S) :-
-    staff_def_pos_request(ID, FD, S),
-    not staff_request(ID, FD, _),
-    staff(N, ID), full_date(FD, D).
-
-neg_request(N, D, S) :- staff_neg_request(ID, FD, S), staff(N, ID), full_date(FD, D).
-neg_request(N, D, S) :-
-    staff_def_neg_request(ID, FD, S),
-    not staff_request(ID, FD, _),
-    staff(N, ID), full_date(FD, D).
+pos_request(N, D, S) :- staff_pos_request(N, D, S).
+pos_request(N, D, S) :- staff_def_pos_request(N, D, S), not staff_request(N, D, _).
+neg_request(N, D, S) :- staff_neg_request(N, D, S).
+neg_request(N, D, S) :- staff_def_neg_request(N, D, S), not staff_request(N, D, _).
 
 % Abbreviations
 staff_request(N, D) :- staff_pos_request(N, D, _).
@@ -207,14 +200,14 @@ point_dweek_soft_ub(dummy, dummy, dummy, dummy).
 
 % Default positive/negative shifts
 % * Positive/negative requests take precedence over default positive/negative requests
-staff_def_pos_request(N, FD, S) :-
-    staff_def_pos_request_dweek(N, W, S), base_date(D, FD, W), 0 <= D, not public_holiday(D).
-staff_def_pos_request(N, FD, S) :-
-    staff_def_pos_request_dweek(N, "PH", S), base_date(D, FD, W), 0 <= D, public_holiday(D).
-staff_def_neg_request(N, FD, S) :-
-    staff_def_neg_request_dweek(N, W, S), base_date(D, FD, W), 0 <= D, not public_holiday(D).
-staff_def_neg_request(N, FD, S) :-
-    staff_def_neg_request_dweek(N, "PH", S), base_date(D, FD, W), 0 <= D, public_holiday(D).
+staff_def_pos_request(N, D, S) :-
+    staff_def_pos_request_dweek(N, W, S), base_date(D, _, W), 0 <= D, not public_holiday(D).
+staff_def_pos_request(N, D, S) :-
+    staff_def_pos_request_dweek(N, "PH", S), base_date(D, _, W), 0 <= D, public_holiday(D).
+staff_def_neg_request(N, D, S) :-
+    staff_def_neg_request_dweek(N, W, S), base_date(D, _, W), 0 <= D, not public_holiday(D).
+staff_def_neg_request(N, D, S) :-
+    staff_def_neg_request_dweek(N, "PH", S), base_date(D, _, W), 0 <= D, public_holiday(D).
 
 %----------------------------------------------------------------------
 % Define LB and UB for soft and hard shift constraints
