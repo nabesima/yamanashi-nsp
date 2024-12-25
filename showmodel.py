@@ -220,10 +220,18 @@ def make_penalty_map(penalties):
             map[row][col] = []
         map[row][col].append(p)
 
+    staff_day_causes = [
+        ("consecutive_work_days", 2),
+        ("pos_request", 2),
+        ("neg_request", 2),
+        ("forbidden_pattern", 3),
+        ("next_shift", 3),
+        ("prev_shift", 3),
+    ]
     for p in penalties:
         cause = p['Cause']
         args = cause.arguments
-        if cause.match("work_days_lb", 1) or cause.match("work_days_ub", 1) or cause.match("weekly_rest_lb", 1) or cause.match("weekly_rest_ub", 1):
+        if cause.match("work_days_lb", 1) or cause.match("work_days_ub", 1) or cause.match("weekly_rest_lb", 1) or cause.match("weekly_rest_ub", 1) or cause.match("pattern_lb", 2) or cause.match("pattern_ub", 2):
             staff = args[0].number
             add(staff, -8, p)
         elif cause.match("shift_lb", 2) or cause.match("shift_ub", 2):
@@ -236,7 +244,7 @@ def make_penalty_map(penalties):
             day = args[2].number
             row = (staff_group, shift_group, "#S")
             add(row, day, p)
-        elif cause.match("consecutive_work_days", 2) or cause.match("pos_request", 2) or cause.match("neg_request", 2) or cause.match("forbidden_pattern", 3) or cause.match("next_shift", 3) or cause.match("prev_shift", 3):
+        elif any(cause.match(cause, args) for cause, args in staff_day_causes):
             staff = args[0].number
             day = args[1].number
             add(staff, day, p)

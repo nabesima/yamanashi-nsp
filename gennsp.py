@@ -181,6 +181,28 @@ class StaffRequest:
         print(self.to_string(), file=out)
 
 @dataclass
+class StaffDefRequest:
+    pos: bool
+    staff: Staff
+    dweek: str
+    shift: str
+
+    def is_conflict(self, other):
+        if self.staff == other.staff and self.dweek == other.dweek:
+            if self.pos != other.pos:
+                return self.shift == other.shift  # requesting the same shift as both positive and negative
+            if self.shift == other.shift:
+                return True  # avoid the same request
+        return False
+
+    def to_string(self):
+        pos = "pos" if self.pos else "neg"
+        return f'staff_def_{pos}_request_dweek({self.staff.no}, "{self.dweek}", "{self.shift}").'
+
+    def to_asp(self, out):
+        print(self.to_string(), file=out)
+
+@dataclass
 class Pattern:
     shifts: list[str]
 
@@ -191,6 +213,19 @@ class Pattern:
         print(f'pattern("{self.name}", {len(self.shifts)}).', file=out)
         for idx, shift in enumerate(self.shifts):
             print(f'pattern("{self.name}", {idx}, "{shift}").', file=out)
+
+@dataclass
+class PatternBound:
+    btype: str
+    pattern: Pattern
+    val: int
+
+    def __post_init__(self):
+        if self.btype != "soft_lb" and self.btype != "soft_ub" and self.btype != "hard_lb" and self.btype != "hard_ub":
+            raise ValueError(f'Unexpected staff bound type: {self.btype}')
+
+    def to_asp(self, out):
+        print(f'pattern_{self.btype}("{self.pattern.name}", {self.val}).', file=out)
 
 @dataclass
 class ForbiddenPattern:
@@ -228,7 +263,9 @@ class NSP:
         self.vertical_constraint_types = []
         self.consecutive_work_days = None
         self.staff_requests = []
+        self.staff_def_requests = []
         self.shift_patterns = []
+        self.pattern_bounds = []
         self.forbidden_patterns = []
         self.prev_shifts = []
         self.next_shifts = []
@@ -293,6 +330,22 @@ class NSP:
         self.staff_requests.append(req)
         return True
 
+    def add_staff_def_request(self, pos: bool, staff: Staff, dweek: str, shift: str):
+        req = StaffDefRequest(pos, staff, dweek, shift)
+        for r in self.staff_def_requests:
+            if req.is_conflict(r):
+                #print("  conflict: " + r.to_string())
+                return False
+        self.staff_def_requests.append(req)
+        return True
+
+    def add_pattern_bound(self, btype: str, shifts: list[str], val: int):
+        p = Pattern(shifts)
+        if p not in self.shift_patterns:
+            self.shift_patterns.append(p)
+        if p not in self.pattern_bounds:
+            self.pattern_bounds.append(PatternBound(btype, p, val))
+
     def add_forbidden_pattern(self, shifts: list[str]):
         p = Pattern(shifts)
         if p not in self.shift_patterns:
@@ -308,13 +361,14 @@ class NSP:
         for next in nexts:
             self.next_shifts.append(NextShift(base, next))
 
-    def set_default_setting(self, num_staffs:int, num_days: int, start_date: str, consec_work_days: int, staff_req: float):
+    def set_default_setting(self, num_staffs:int, num_days: int, start_date: str, consec_work_days: int, staff_req: float, def_req_staffs: int):
         self.set_width(num_days, start_date)
         self.set_default_staffs(num_staffs)
         self.set_default_shifts_constraint()
         self.set_default_staffs_constraints()
         self.consecutive_work_days = consec_work_days
-        self.set_default_staff_requests(staff_req)
+        self.set_default_staff_requests(staff_req, def_req_staffs)
+        self.set_default_pattern_bounds()
         self.set_default_forbbiden_patterns()
         self.set_default_prev_next_shifts()
 
@@ -397,7 +451,7 @@ class NSP:
                                     continue
                                 self.add_staff_bound(btype, staff_group, shift_group, dweek, num)
 
-    def set_default_staff_requests(self, ratio):
+    def set_default_staff_requests(self, ratio, def_req_staffs):
         req_shifts = ["D", "SE", "SN", "WR", "BT", "TR", "AL", "BL"]
         num_cells = len(self.staffs) * self.dates.width
         num_req = round(num_cells * ratio)
@@ -413,6 +467,22 @@ class NSP:
                 pos = shift != "SE" and shift != "SN"
                 if self.add_staff_request(pos, staff, date, shift):
                     break
+        def_req_shifts = ["D", "LD", "SE", "SN"]
+        for _ in range(0, def_req_staffs):
+            while True:
+                pos = random.choice([True, False])
+                staff = random.choice(self.staffs)
+                dweek = random.choice(["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su", "PH"])
+                shift = random.choice(def_req_shifts)
+                if self.add_staff_def_request(pos, staff, dweek, shift):
+                    break
+
+    def set_default_pattern_bounds(self):
+        self.add_pattern_bound("hard_lb", ["WR", "WR"], 2)
+        self.add_pattern_bound("soft_ub", ["LD", "D"],  1)
+        self.add_pattern_bound("soft_ub", ["LM", "D"],  0)
+        self.add_pattern_bound("soft_ub", ["LM", "LD"], 0)
+        self.add_pattern_bound("soft_ub", ["LM", "LM"], 0)
 
     def set_default_forbbiden_patterns(self):
         self.add_forbidden_pattern(["LD", "LD"])
@@ -469,11 +539,16 @@ class NSP:
         print("% Shift patterns", file=out)
         for p in self.shift_patterns:
             p.to_asp(out)
+        print("% Pattern bounds", file=out)
+        for p in self.pattern_bounds:
+            p.to_asp(out)
         print("% Forbidden patterns", file=out)
         for p in self.forbidden_patterns:
             p.to_asp(out)
         print("% Staff requests ---------------------------------", file=out)
         for r in self.staff_requests:
+            r.to_asp(out)
+        for r in self.staff_def_requests:
             r.to_asp(out)
 
 
@@ -484,6 +559,7 @@ def main():
     parser.add_argument("-s", "--start-date", type=str, default="2025-04-01", help="Start date in YYYY-MM-DD format")
     parser.add_argument("-c", "--consecutive-work-days", type=int, default=5, help="Number of consecutive workdays")
     parser.add_argument("-r", "--staff-request", type=float, default=0.05, help="Staff request rate as a percentage (between 0.0 and 1.0)")
+    parser.add_argument("-dr", "--default-requests", type=int, default=0, help="Specify the number of default shift requests")
     parser.add_argument("--seed", type=int, default=None, help="Set the random seed")
     args = parser.parse_args()
 
@@ -498,7 +574,9 @@ def main():
         args.num_days,
         args.start_date,
         args.consecutive_work_days,
-        args.staff_request)
+        args.staff_request,
+        args.default_requests,
+    )
     nsp_instance.to_asp(stdout)
 
 if __name__ == "__main__":

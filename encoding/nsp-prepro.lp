@@ -218,6 +218,14 @@ shift_lb(hard, N, SG, V) :- shifts_hard_lb(N, SG, V).
 shift_ub(hard, N, SG, V) :- shifts_hard_ub(N, SG, V).
 
 %----------------------------------------------------------------------
+% Define LB and UB for shift patterns
+%----------------------------------------------------------------------
+pattern_lb(soft, PID, V) :- pattern_soft_lb(PID, V).
+pattern_ub(soft, PID, V) :- pattern_soft_ub(PID, V).
+pattern_lb(hard, PID, V) :- pattern_hard_lb(PID, V).
+pattern_ub(hard, PID, V) :- pattern_hard_ub(PID, V).
+
+%----------------------------------------------------------------------
 % Past shift assignments related
 %----------------------------------------------------------------------
 % Number of shift S assignments in past for nurse N

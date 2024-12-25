@@ -144,7 +144,7 @@ violation(hard, neg_request(N, D)) :-
      pos_request(N, D), next_date(D).
 
 %----------------------------------------------------------------------
-% Constraints on forbidden shift patterns
+% Constraints on shift patterns
 %----------------------------------------------------------------------
 
 pattern_occured(PID, N, D, D+LEN-1) :-
@@ -158,12 +158,42 @@ requested_pattern(PID, N, BD, ED) :-
     pos_request(N, BD + IDX, S) : pattern(PID, IDX, S), not rest_shift(S) ;
     pos_request(N, BD + IDX, ("WR";"PH")) : pattern(PID, IDX, "WR").
 
+% Violates the lower bound (LB) for pattern PID if occurrences (X) are less than LB.
+violation(T, pattern_lb(N, PID), LB, X) :-
+    staff(N),
+    pattern_lb(T, PID, LB),
+    X = { pattern_occured(PID, N, BD, ED) : date(ED) },
+    X < LB.
+
+% Violates the upper bound (UB) for pattern PID if occurrences (X) exceed UB.
+violation(T, pattern_ub(N, PID), UB, X) :-
+    pattern_ub(T, PID, UB),
+    staff(N),
+    X = { pattern_occured(PID, N, BD, ED) : date(ED) },
+    UB < X.
+
 % Forbidden shift patterns are allowed only if they are requested.
 violation(hard, forbidden_pattern(N, BD, PID)) :-
     forbidden_pattern(PID),
     pattern_occured(PID, N, BD, ED),
     not requested_pattern(PID, N, BD, ED),
     date((BD;ED)).
+
+% :- patterns_hard_lb(PS, LB), staff(N), not soft_all,
+%     not LB { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }.  % 今月に終わるパターンの頻度を数える
+
+% penalty(patterns_soft_lb(N, PS, LB, X), staff(N), PNL * (LB - X) * (LB - X), PRI) :-
+%     patterns_soft_lb(PS, LB), staff(N),
+%     X = { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }, X < LB,  % 今月に終わるパターンの頻度を数える
+%     _penalty("patterns_lb", PNL), _priority("patterns_lb", PRI).
+
+% :- patterns_hard_ub(PS, UB), staff(N), not soft_all,
+%     not { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) } UB.  % 今月に終わるパターンの頻度を数える
+
+% penalty(patterns_soft_ub(N, PS, UB, X), staff(N), PNL * (X - UB) * (X - UB), PRI) :-
+%     patterns_soft_ub(PS, UB), staff(N),
+%     X = { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }, UB < X,  % 今月に終わるパターンの頻度を数える
+%     _penalty("patterns_ub", PNL), _priority("patterns_ub", PRI).
 
 %----------------------------------------------------------------------
 % Constraints on next shifts
@@ -231,18 +261,20 @@ cause_type(work_days_lb(N)) :- staff(N).
 cause_type(work_days_ub(N)) :- staff(N).
 cause_type(weekly_rest_lb(N)) :- staff(N).
 cause_type(weekly_rest_ub(N)) :- staff(N).
-cause_type(staff_lb(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
-cause_type(staff_ub(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
-cause_type(point_lb(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
-cause_type(point_ub(NG, SG, D)) :- staff_group(NG), shift_group(SG), date(D).
-cause_type(shift_lb(N, SG)) :- staff(N), shift_group(SG).
-cause_type(shift_ub(N, SG)) :- staff(N), shift_group(SG).
+cause_type(staff_lb(NG, SG, D)) :- staff_lb(_, NG, SG, D, _).
+cause_type(staff_ub(NG, SG, D)) :- staff_ub(_, NG, SG, D, _).
+cause_type(point_lb(NG, SG, D)) :- point_lb(_, NG, SG, D, _).
+cause_type(point_ub(NG, SG, D)) :- point_ub(_, NG, SG, D, _).
+cause_type(shift_lb(N, SG)) :- shift_lb(_, N, SG, _).
+cause_type(shift_ub(N, SG)) :- shift_ub(_, N, SG, _).
 cause_type(consecutive_work_days(N, D)) :- staff(N), base_date(D).
-cause_type(pos_request(N, D)) :- staff(N), date(D).
-cause_type(neg_request(N, D)) :- staff(N), date(D).
-cause_type(forbidden_pattern(N, D, PID)) :- staff(N), date(D), forbidden_pattern(PID).
-cause_type(next_shift(N, D, S)) :- staff(N), date(D), shift(S).
-cause_type(prev_shift(N, D, S)) :- staff(N), date(D), shift(S).
+cause_type(pos_request(N, D)) :- pos_request(N, D).
+cause_type(neg_request(N, D)) :- neg_request(N, D).
+cause_type(pattern_lb(N, PID)) :- staff(N), pattern_lb(_, PID, _).
+cause_type(pattern_ub(N, PID)) :- staff(N), pattern_ub(_, PID, _).
+cause_type(forbidden_pattern(N, D, PID)) :- staff(N), base_date(D), forbidden_pattern(PID).
+cause_type(next_shift(N, D, S)) :- staff(N), base_date(D), next_shift(S, _).
+cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(S, _).
 
 % if there is no department-specific priority, use the defualt priority
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
