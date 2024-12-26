@@ -244,10 +244,21 @@ def make_penalty_map(penalties):
             day = args[2].number
             row = (staff_group, shift_group, "#S")
             add(row, day, p)
-        elif any(cause.match(cause, args) for cause, args in staff_day_causes):
+        elif any(cause.match(name, args) for name, args in staff_day_causes):
             staff = args[0].number
             day = args[1].number
             add(staff, day, p)
+        elif cause.match("recommended_night_pair", 2):
+            staff1 = args[0].number
+            staff2 = args[1].number
+            add(staff1, -8, p)
+            add(staff2, -8, p)
+        elif cause.match("forbidden_night_pair", 3):
+            staff1 = args[0].number
+            staff2 = args[1].number
+            day = args[2].number
+            add(staff1, day, p)
+            add(staff2, day, p)
         else:
             raise ValueError(f'Unknown penalty cause: {cause}')
 
@@ -387,7 +398,12 @@ def print_shift_table(table):
                 p['Res'] = table.assigned_map[staff][date]
             elif c.match("forbidden_pattern", 3):
                 p['Req'] = p['Res'] = args[2].string
-
+            elif c.match("forbidden_night_pair", 3):
+                staff1 = args[0].number
+                staff2 = args[1].number
+                date = args[2].number
+                p['Req'] = table.assigned_map[staff1][date]
+                p['Res'] = table.assigned_map[staff2][date]
 
         pf = pd.DataFrame(table.penalties)
         pf = pf.sort_values(['P', 'W', 'Type', 'Cause'], ascending=[False, False, True, True], ignore_index=True)

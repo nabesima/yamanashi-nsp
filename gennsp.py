@@ -250,6 +250,23 @@ class NextShift:
     def to_asp(self, out):
         print(f'next_shift("{self.base}", "{self.next}").', file=out)
 
+@dataclass
+class RecommendedPair:
+    mentor: Staff
+    novice: Staff
+    lb: int
+
+    def to_asp(self, out):
+        print(f'recommended_night_pair({self.mentor.no}, {self.novice.no}, {self.lb}).', file=out)
+
+@dataclass
+class ForbiddenPair:
+    n1: Staff
+    n2: Staff
+
+    def to_asp(self, out):
+        print(f'forbidden_night_pair({self.n1.no}, {self.n2.no}).', file=out)
+
 class NSP:
     def __init__(self):
         self.staffs = []
@@ -269,6 +286,8 @@ class NSP:
         self.forbidden_patterns = []
         self.prev_shifts = []
         self.next_shifts = []
+        self.recommended_pairs = []
+        self.forbidden_pairs = []
 
     def set_width(self, num_days: int, start_date: str = "2025-04-01"):
         self.dates = Dates(start_date, num_days)
@@ -361,7 +380,13 @@ class NSP:
         for next in nexts:
             self.next_shifts.append(NextShift(base, next))
 
-    def set_default_setting(self, num_staffs:int, num_days: int, start_date: str, consec_work_days: int, staff_req: float, def_req_staffs: int):
+    def add_recommended_pair(self, mentor: Staff, novice: Staff, lb: int):
+        self.recommended_pairs.append(RecommendedPair(mentor, novice, lb))
+
+    def add_forbidden_pair(self, n1: Staff, n2: Staff):
+        self.forbidden_pairs.append(ForbiddenPair(n1, n2))
+
+    def set_default_setting(self, num_staffs:int = 6, num_days: int = 7, start_date: str = "2025-04-01", consec_work_days: int = 5, staff_req: float = 0.05, def_req_staffs: int = 0, recommended_pairs: int = 0, forbidden_pairs: int = 0):
         self.set_width(num_days, start_date)
         self.set_default_staffs(num_staffs)
         self.set_default_shifts_constraint()
@@ -371,6 +396,8 @@ class NSP:
         self.set_default_pattern_bounds()
         self.set_default_forbbiden_patterns()
         self.set_default_prev_next_shifts()
+        self.set_default_recommended_pairs(recommended_pairs)
+        self.set_default_forbidden_pairs(forbidden_pairs)
 
     def set_default_staffs(self, num):
 
@@ -503,7 +530,21 @@ class NSP:
         # E -> [N] -> WR
         self.add_prev_shifts("N", ["E"])
         self.add_next_shifts("N", ["WR"])
-        pass
+
+    def set_default_recommended_pairs(self, num_pairs):
+        mentors = self.staff_groups["Expert"].members + self.staff_groups["Medium"].members
+        novices = self.staff_groups["Novice"].members
+        for _ in range(0, num_pairs):
+            # Select one expert or medium nurse and one novice nurse.
+            mentor = random.choice(mentors)
+            novice = random.choice(novices)
+            num = round(self.dates.width / 7)
+            self.add_recommended_pair(mentor, novice, num)
+
+    def set_default_forbidden_pairs(self, num_pairs):
+        for _ in range(0, num_pairs):
+            ns = random.sample(self.staffs, 2)
+            self.add_forbidden_pair(ns[0], ns[1])
 
     def to_asp(self, out):
         print("% Staffs -----------------------------------------", file=out)
@@ -550,6 +591,11 @@ class NSP:
             r.to_asp(out)
         for r in self.staff_def_requests:
             r.to_asp(out)
+        print("% Pairs --------------------------------------", file=out)
+        for p in self.recommended_pairs:
+            p.to_asp(out)
+        for p in self.forbidden_pairs:
+            p.to_asp(out)
 
 
 def main():
@@ -560,6 +606,8 @@ def main():
     parser.add_argument("-c", "--consecutive-work-days", type=int, default=5, help="Number of consecutive workdays")
     parser.add_argument("-r", "--staff-request", type=float, default=0.05, help="Staff request rate as a percentage (between 0.0 and 1.0)")
     parser.add_argument("-dr", "--default-requests", type=int, default=0, help="Specify the number of default shift requests")
+    parser.add_argument("-rp", "--recommended-pairs", type=int, default=0, help="Specify the number of recommended night shift pairs")
+    parser.add_argument("-fp", "--forbidden-pairs", type=int, default=0, help="Specify the number of forbidden night shift pairs")
     parser.add_argument("--seed", type=int, default=None, help="Set the random seed")
     args = parser.parse_args()
 
@@ -576,6 +624,8 @@ def main():
         args.consecutive_work_days,
         args.staff_request,
         args.default_requests,
+        args.recommended_pairs,
+        args.forbidden_pairs,
     )
     nsp_instance.to_asp(stdout)
 

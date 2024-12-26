@@ -17,6 +17,8 @@ violation(hard, work_days_ub(N), UB, X) :-
     staff(N), work_days_bounds(N, LB, UB),
     X = { assigned(N, D) : workable_date(N, D) },
     UB < X.
+
+% Original:
 % LB { assigned(N, D) : workable_date(N, D) } UB :-
 %     staff(N), work_days_bounds(N, LB, UB), not soften_hard.
 
@@ -38,6 +40,7 @@ violation(hard, weekly_rest_ub(N), UB, X) :-
     X = { not assigned(N, D) : weekly_rest_date(N, D) },
     UB < X.
 
+% Original:
 % LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :-
 %     weekly_rest_bounds(N, LB, UB), not soften_hard.
 
@@ -162,14 +165,14 @@ requested_pattern(PID, N, BD, ED) :-
 violation(T, pattern_lb(N, PID), LB, X) :-
     staff(N),
     pattern_lb(T, PID, LB),
-    X = { pattern_occured(PID, N, BD, ED) : date(ED) },
+    X = { pattern_occured(PID, N, BD, ED) : date(ED) },  % The last shift in the pattern must occur within this month.
     X < LB.
 
 % Violates the upper bound (UB) for pattern PID if occurrences (X) exceed UB.
 violation(T, pattern_ub(N, PID), UB, X) :-
     pattern_ub(T, PID, UB),
     staff(N),
-    X = { pattern_occured(PID, N, BD, ED) : date(ED) },
+    X = { pattern_occured(PID, N, BD, ED) : date(ED) },   % The last shift in the pattern must occur within this month.
     UB < X.
 
 % Forbidden shift patterns are allowed only if they are requested.
@@ -178,22 +181,6 @@ violation(hard, forbidden_pattern(N, BD, PID)) :-
     pattern_occured(PID, N, BD, ED),
     not requested_pattern(PID, N, BD, ED),
     date((BD;ED)).
-
-% :- patterns_hard_lb(PS, LB), staff(N), not soft_all,
-%     not LB { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }.  % 今月に終わるパターンの頻度を数える
-
-% penalty(patterns_soft_lb(N, PS, LB, X), staff(N), PNL * (LB - X) * (LB - X), PRI) :-
-%     patterns_soft_lb(PS, LB), staff(N),
-%     X = { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }, X < LB,  % 今月に終わるパターンの頻度を数える
-%     _penalty("patterns_lb", PNL), _priority("patterns_lb", PRI).
-
-% :- patterns_hard_ub(PS, UB), staff(N), not soft_all,
-%     not { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) } UB.  % 今月に終わるパターンの頻度を数える
-
-% penalty(patterns_soft_ub(N, PS, UB, X), staff(N), PNL * (X - UB) * (X - UB), PRI) :-
-%     patterns_soft_ub(PS, UB), staff(N),
-%     X = { pattern_occured(P, N, BD, ED) : patterns(PS, P), date(ED) }, UB < X,  % 今月に終わるパターンの頻度を数える
-%     _penalty("patterns_ub", PNL), _priority("patterns_ub", PRI).
 
 %----------------------------------------------------------------------
 % Constraints on next shifts
@@ -218,6 +205,23 @@ violation(hard, prev_shift(N, D, S)) :-
     not 1 { ext_assigned(N, D-1, PS) : prev_shift(S, PS), not non_work_shift(PS) ;
             ext_assigned(N, D-1, PS) : prev_shift(S, "WR"), non_work_shift(PS) ;
             not ext_assigned(N, D-1, _) : first_date(D) } 1.  % If nurse N has no assignment on D-1, any previous shift can be assigned.
+
+%----------------------------------------------------------------------
+% Constraints on pairs
+%----------------------------------------------------------------------
+
+% Recommended night shift pairs must be assigned the same night shift at least the specified number of times.
+violation(soft, recommended_night_pair(N1, N2), LB, X) :-
+    recommended_night_pair(N1, N2, LB),
+    X = { date(D) : night_work_shift(S), assigned(N1, D, S), assigned(N2, D, S) },
+    X < LB.
+
+% Forbidden night shift pairs must not share night shifts.
+violation(soft, forbidden_night_pair(N1, N2, D)) :-
+    forbidden_night_pair(N1, N2),
+    night_work_shift(S),
+    assigned(N1, D, S),
+    assigned(N2, D, S).
 
 %----------------------------------------------------------------------
 % Auxiliary predicates
@@ -275,6 +279,8 @@ cause_type(pattern_ub(N, PID)) :- staff(N), pattern_ub(_, PID, _).
 cause_type(forbidden_pattern(N, D, PID)) :- staff(N), base_date(D), forbidden_pattern(PID).
 cause_type(next_shift(N, D, S)) :- staff(N), base_date(D), next_shift(S, _).
 cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(S, _).
+cause_type(recommended_night_pair(N1, N2)) :- recommended_night_pair(N1, N2, _).
+cause_type(forbidden_night_pair(N1, N2, D)) :- forbidden_night_pair(N1, N2), date(D).
 
 % if there is no department-specific priority, use the defualt priority
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
