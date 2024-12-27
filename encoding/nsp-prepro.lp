@@ -37,9 +37,9 @@ ext_assigned(N, D, S) :- staff(N), next_date(D), shift_data(N, D, S).
 %----------------------------------------------------------------------
 
 pos_request(N, D, S) :- staff_pos_request(N, D, S).
-pos_request(N, D, S) :- staff_def_pos_request(N, D, S), not staff_request(N, D, _).
+pos_request(N, D, S) :- staff_def_pos_request(N, D, S), not staff_request(N, D).
 neg_request(N, D, S) :- staff_neg_request(N, D, S).
-neg_request(N, D, S) :- staff_def_neg_request(N, D, S), not staff_request(N, D, _).
+neg_request(N, D, S) :- staff_def_neg_request(N, D, S), not staff_request(N, D).
 
 % Abbreviations
 staff_request(N, D) :- staff_pos_request(N, D, _).
@@ -68,6 +68,10 @@ num_public_holidays(X) :- X = { public_holiday(D) : date(D) }.
 weekday(D) :- date(D, ("Mo";"Tu";"We";"Th";"Fr")), not public_holiday(D).
 % Weekends
 weekend(D) :- date(D, ("Sa";"Su")), not public_holiday(D).
+% Number of weekends
+% num_curr_weekends(N) :- N = { date(D, "Su") }.
+% Day os week
+dweek("Mo";"Tu";"We";"Th";"Fr";"Sa";"Su").
 % First date of shift table
 first_date(0).
 first_full_date(FD) :- base_date(0, FD, _).
@@ -76,8 +80,9 @@ last_date(X)  :- X = #max { D : date(D, _) }.
 % Past dates
 past_date(D, PD, W) :- past_date(PD, W), first_full_date(FD), D = PD-FD.
 
-% Suppresses warnings when there are no public holidays
+% Suppresses warnings when there are no target predicates
 public_holiday(dummy).
+past_date(0, dummy).
 
 %----------------------------------------------------------------------
 % Work, rest, business, leave and na dates
@@ -209,6 +214,10 @@ staff_def_neg_request(N, D, S) :-
 staff_def_neg_request(N, D, S) :-
     staff_def_neg_request_dweek(N, "PH", S), base_date(D, _, W), 0 <= D, public_holiday(D).
 
+% Suppresses warnings when there are no default requests
+staff_def_pos_request_dweek(dummy, dummy, dummy).
+staff_def_neg_request_dweek(dummy, dummy, dummy).
+
 %----------------------------------------------------------------------
 % Define LB and UB for soft and hard shift constraints
 %----------------------------------------------------------------------
@@ -217,6 +226,12 @@ shift_ub(soft, N, SG, V) :- shifts_soft_ub(N, SG, V).
 shift_lb(hard, N, SG, V) :- shifts_hard_lb(N, SG, V).
 shift_ub(hard, N, SG, V) :- shifts_hard_ub(N, SG, V).
 
+% Suppresses warnings when there are no shift bounds
+shifts_soft_lb(dummy, dummy, 0).
+shifts_soft_ub(dummy, dummy, 0).
+shifts_hard_lb(dummy, dummy, 0).
+shifts_hard_ub(dummy, dummy, 0).
+
 %----------------------------------------------------------------------
 % Define LB and UB for shift patterns
 %----------------------------------------------------------------------
@@ -224,6 +239,12 @@ pattern_lb(soft, PID, V) :- pattern_soft_lb(PID, V).
 pattern_ub(soft, PID, V) :- pattern_soft_ub(PID, V).
 pattern_lb(hard, PID, V) :- pattern_hard_lb(PID, V).
 pattern_ub(hard, PID, V) :- pattern_hard_ub(PID, V).
+
+% Suppresses warnings when there are no pattern bounds
+pattern_soft_lb(dummy, 0).
+pattern_soft_ub(dummy, 0).
+pattern_hard_lb(dummy, 0).
+pattern_hard_ub(dummy, 0).
 
 %----------------------------------------------------------------------
 % Past shift assignments related

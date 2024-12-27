@@ -224,6 +224,57 @@ violation(soft, forbidden_night_pair(N1, N2, D)) :-
     assigned(N2, D, S).
 
 %----------------------------------------------------------------------
+% Constraints related to rewards
+%----------------------------------------------------------------------
+
+num_curr_weekend_offs(N, X) :-
+    staff(N),
+    X = { date(D, "Su") : ext_assigned(N, D, S2), ext_assigned(N, D-1, S1), rest_shift(S1), rest_shift(S2) }.
+num_weekend_offs(N, P, C, P+C) :- num_past_weekend_offs(N, P), num_curr_weekend_offs(N, C).
+
+% Reward if weekend rest is assigned to nurses with fewer past weekend rests.
+achievement(weekend_offs(N), PAST_MAX - PAST_OWN) :-
+    staff(N),
+    num_curr_weekend_offs(N, X),
+    X > 0,
+    num_past_weekend_offs(N, PAST_OWN),
+    max_past_weekend_offs(PAST_MAX).
+
+
+
+
+% reward(weekend_offs(N, X), staff(N), RWD * (PAST_MAX + 4 - X), PRI) :-
+%     staff(N),
+%     0 < { date(D, "日") : ext_assigned(N, D, S2), ext_assigned(N, D-1, S1), regular_holiday_shift(S1), regular_holiday_shift(S2) },
+%     num_past_weekend_offs(N, X),
+%     max_past_weekend_offs(PAST_MAX),
+%     _reward("weekend_offs", RWD), _priority("weekend_offs", PRI).
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% % 連休に関する制約
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% reward(consecutive_holidays(N, X), staff(N), RWD * (PAST_MAX + 4 - X), PRI) :-
+%     staff(N),
+%     0 < { ext_assigned(N, D-2) : ext_regular_holiday_off(N, D-1), ext_regular_holiday_off(N, D), date(D) },
+%     num_past_consecutive_holidays(N, X),
+%     max_past_consecutive_holidays(PAST_MAX),
+%     _reward("consecutive_holidays", RWD), _priority("consecutive_holidays", PRI).
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% % 祝日休に関する制約
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% reward(national_holiday_offs(N, X), staff(N), RWD * (PAST_MAX + CURR_MAX - X), PRI) :-
+%     staff(N),
+%     0 < { national_holiday_off(N, _) },
+%     num_past_national_holiday_offs(N, X),
+%     max_past_national_holiday_offs(PAST_MAX),
+%     num_national_holidays(CURR_MAX),
+%     _reward("national_holiday_off", RWD), _priority("national_holiday_off", PRI).
+
+
+%----------------------------------------------------------------------
 % Auxiliary predicates
 %----------------------------------------------------------------------
 
@@ -261,6 +312,16 @@ penalty(TYPE, CAUSE, 0, 0, 1, P) :-
 % for obj function
 penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
 
+%----------------------------------------------------------------------
+% Reward
+%----------------------------------------------------------------------
+reward(CAUSE, W, P) :-
+    achievement(CAUSE, W),
+    priority(CAUSE, P).
+
+%----------------------------------------------------------------------
+% Cause of penalty and reward
+%----------------------------------------------------------------------
 cause_type(work_days_lb(N)) :- staff(N).
 cause_type(work_days_ub(N)) :- staff(N).
 cause_type(weekly_rest_lb(N)) :- staff(N).
@@ -281,11 +342,17 @@ cause_type(next_shift(N, D, S)) :- staff(N), base_date(D), next_shift(S, _).
 cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(S, _).
 cause_type(recommended_night_pair(N1, N2)) :- recommended_night_pair(N1, N2, _).
 cause_type(forbidden_night_pair(N1, N2, D)) :- forbidden_night_pair(N1, N2), date(D).
+cause_type(weekend_offs(N)) :- staff(N).
 
+%----------------------------------------------------------------------
+% Priority of penalty and reward
+%----------------------------------------------------------------------
 % if there is no department-specific priority, use the defualt priority
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
 priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _).
 priority(soft, C, P) :- dep_priority(C, P).
+priority(C, 1) :- cause_type(C), not dep_priority(C, _).
+priority(C, P) :- dep_priority(C, P).
 
 % test
 dep_priority(C, 2) :- cause_type(C), C = (staff_lb(_,_,_);staff_ub(_,_,_);point_lb(_,_,_);point_ub(_,_,_)).
@@ -296,7 +363,7 @@ dep_priority(C, 2) :- cause_type(C), C = (staff_lb(_,_,_);staff_ub(_,_,_);point_
 % Minimize the total penalty in lexicographic order
 #minimize { WEGIHT@PRIORITY,TYPE,CAUSE : penalty(TYPE, CAUSE, WEGIHT, PRIORITY) }.
 % Maxmize the total reward in lexicographic order
-#maximize { WEGIHT@PRIORITY,TYPE,CAUSE : reward(TYPE, CAUSE, WEGIHT, PRIORITY) }.
+#maximize { WEGIHT@PRIORITY,CAUSE : reward(CAUSE, WEGIHT, PRIORITY) }.
 
 %----------------------------------------------------------------------
 % Output related
