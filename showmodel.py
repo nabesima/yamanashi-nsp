@@ -83,14 +83,16 @@ SHIFT_COLOR = {
 }
 
 @dataclass
-class STable:
-    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, penalty_map, request_map):
+class ShiftTable:
+    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, rewards, penalty_map, reward_map, request_map):
         self.title = title
         self.main_df = main_df
         self.right_df = right_df
         self.bottom_df = bottom_df
         self.penalties = penalties
+        self.rewards = rewards
         self.penalty_map = penalty_map
+        self.reward_map = reward_map
         self.request_map = request_map
         self.cells = {}
 
@@ -138,7 +140,7 @@ class STable:
         # ------------------------------------------------------------
         # Make the right table
         col_counts = self.right_df.columns.get_level_values(0).value_counts()
-        print(col_counts)
+        # print(col_counts)
         for t, c in col_counts.items():
             self.cells['Dweek'][t] = Cell(t, right_border=True, col_span=c)
         borders = col_counts.cumsum().tolist()
@@ -148,10 +150,13 @@ class STable:
             self.cells['RDay'][t] = Cell(t, right_border=border)
 
         for no, row in self.right_df.iterrows():
-            row = row.droplevel(0)
+            # row = row.droplevel(0)
             for idx, (t, n) in enumerate(row.items()):
+                # print(f't={t}, n={n}')
                 border = True if idx+1 in borders else False
                 style = None
+                if self.has_reward(no, t):
+                    style = Fore.BLACK + Back.CYAN
                 if self.has_penalty(no, t):
                     style = Back.RED
                 self.cells[no][t] = Cell(str(n), style=style, right_border=border)
@@ -171,11 +176,18 @@ class STable:
                     style = Back.RED
                 self.cells[idx][rd] = Cell(str(n), style=style, right_border=border)
 
-        self.max_width = sum(map(lambda e: e.width, self.cells['RDay'].values())) + len(self.cells['RDay'].values())
+        max_width = sum(map(lambda e: e.width, self.cells['RDay'].values())) + len(self.cells['RDay'].values())
+        self.cells['TopBorder']['index'].width = max_width
+        self.cells['BottomBorder']['index'].width = max_width
 
     def has_penalty(self, row, col):
         if row in self.penalty_map:
             return col in self.penalty_map[row]
+        return False
+
+    def has_reward(self, row, col):
+        if row in self.reward_map:
+            return col in self.reward_map[row]
         return False
 
     def has_request(self, row, col):
@@ -184,15 +196,14 @@ class STable:
         return False
 
     def display(self):
-        print(self.title)
+        if self.title:
+            print(self.title)
         for row in self.cells:
-            if isinstance(self.cells[row]['index'], Cell):
-                print(''.join(map(lambda c: c.to_s(), self.cells[row].values())))
-            else:
-                print('-' * self.max_width)
+            print(''.join(map(lambda c: c.to_s(), self.cells[row].values())))
 
         # Penalties
         if len(self.penalties) > 0:
+            # Complement the explanations
             for p in self.penalties:
                 c = p['Cause']
                 args = c.arguments
@@ -210,7 +221,12 @@ class STable:
                     p['Req'] = self.cells[staff1][date].text
                     p['Res'] = self.cells[staff2][date].text
 
-            pf = pd.DataFrame(self.penalties)
+            penalties = self.penalties
+            for r in self.rewards:
+                r['W'] = -r['W']
+                r['Type'] = 'reward'
+                r['Req'] = r['Res'] = '-'
+            pf = pd.DataFrame(self.penalties + self.rewards)
             pf = pf.sort_values(['P', 'W', 'Type', 'Cause'], ascending=[False, False, True, True], ignore_index=True)
             pf.index += 1
             print("Penalties:")
@@ -219,29 +235,6 @@ class STable:
             print("Penalties:")
             print("  None")
         print()
-
-# class ShiftTable:
-#     def __init__(self, df, title, first_date, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map):
-#         self.df = df
-#         self.title = title
-#         self.first_date = first_date
-#         self.width = width
-#         self.df_shifts = df_shifts
-#         self.df_staffs = df_staffs
-#         self.penalties = penalties
-#         self.penalty_map = penalty_map
-#         self.assigned_map = assigned_map
-#         self.request_map = request_map
-
-# class Penalty:
-#     def __init__(self, type, cause, location, request, result, wegiht, priority):
-#         self.type = type
-#         self.cause = cause
-#         self.location = location
-#         self.request = request
-#         self.result = result
-#         self.weight = wegiht
-#         self.priority = priority
 
 # Create a recursive defaultdict
 def recursive_defaultdict():
@@ -255,7 +248,8 @@ ATOM_RULES = {
     'out_date': [('RDay', 'num'), ('ADay', 'num'), ('Dweek', 'str')],
     'staff': [('No', 'num'), ('Name', 'str'), ('Job', 'str'), ('ID', 'str'), ('Point', 'num')],
     'staff_group': [('StaffGroup', 'str'), ('No', 'num')],
-    'penalty': [('Type', 'sym'), ('Cause', 'sym'), ('Req', 'num'), ('Res', 'num'), ('P', 'num'), ('W', 'num')],
+    'penalty': [('Type', 'sym'), ('Cause', 'sym'), ('Req', 'num'), ('Res', 'num'), ('W', 'num'), ('P', 'num') ],
+    'reward': [('Cause', 'sym'), ('W', 'num'), ('P', 'num') ],
     'pos_request': [('No', 'num'), ('Date', 'num'), ('Shift', 'str')],
     'neg_request': [('No', 'num'), ('Date', 'num'), ('Shift', 'str')],
     'horizontal_constraint_type': ['str'],
@@ -268,6 +262,7 @@ CAUSE_RULES = {
     'work_days_ub':   { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_lb': { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_ub': { 'target': 'staff', 'args': ['num'] },
+    'weekend_offs':   { 'target': '#wkndOffs', 'args': ['num'] },
 
     'shift_lb': { 'target': 'shifts', 'args': ['num', 'str'] },
     'shift_ub': { 'target': 'shifts', 'args': ['num', 'str'] },
@@ -444,8 +439,14 @@ def make_shift_table(atoms: list[clingo.Symbol]):
 
     # ------------------------------------------------------------
     # Make the penalty mapping
-    penalty_map = make_penalty_map_v2(model['penalty'])
+    penalty_map = make_penalty_map(model['penalty'])
     # for key, val in penalty_map.items():
+    #     print(f'{key} = {val}')
+
+    # ------------------------------------------------------------
+    # Make the reward mapping
+    reward_map = make_reward_map(model['reward'])
+    # for key, val in reward_map.items():
     #     print(f'{key} = {val}')
 
     # ------------------------------------------------------------
@@ -460,16 +461,17 @@ def make_shift_table(atoms: list[clingo.Symbol]):
     if 'header' in model:
         title = model['header'][0]
 
-    return STable(title, main_df, right_df, bottom_df, model['penalty'], penalty_map, request_map)
+    return ShiftTable(title, main_df, right_df, bottom_df, model['penalty'], model['reward'], penalty_map, reward_map, request_map)
 
-def make_penalty_map_v2(penalties):
+def add(pmap, row, col, p):
+    if row not in pmap:
+        pmap[row] = {}
+    if col not in pmap[row]:
+        pmap[row][col] = []
+    pmap[row][col].append(p)
+
+def make_penalty_map(penalties):
     pmap = {}
-    def add(row, col, p):
-        if row not in pmap:
-            pmap[row] = {}
-        if col not in pmap[row]:
-            pmap[row][col] = []
-        pmap[row][col].append(p)
     for p in penalties:
         cause = p['Cause']
         if cause.name not in CAUSE_RULES:
@@ -480,395 +482,41 @@ def make_penalty_map_v2(penalties):
             arg = cause.arguments[idx]
             args.append(conv_symbol(arg, type))
         if cause_rule['target'] == 'staff':
-            add(args[0], 'index', p)
+            add(pmap, args[0], 'index', p)
         elif cause_rule['target'] == 'shifts':
-            add(args[0], args[1], p)
+            add(pmap, args[0], ('#shifts', args[1]), p)
         elif cause_rule['target'] == 'staffs':
-            add((args[0], args[1], '#S'), args[2], p)
+            add(pmap, (args[0], args[1], '#S'), args[2], p)
         elif cause_rule['target'] == 'staff-day':
-            print(f'pmap[{args[0]}][{args[1]}] += {p}')
-            add(args[0], args[1], p)
+            add(pmap, args[0], args[1], p)
         elif cause_rule['target'] == 'staff-pair':
-            add(args[0], 'index', p)
-            add(args[1], 'index', p)
+            add(pmap, args[0], 'index', p)
+            add(pmap, args[1], 'index', p)
         elif cause_rule['target'] == 'staff-pair-day':
-            add(args[0], args[2], p)
-            add(args[1], args[2], p)
+            add(pmap, args[0], args[2], p)
+            add(pmap, args[1], args[2], p)
         else:
             raise ValueError(f'Unknown cause target: {cause_rule['target']}')
 
     return pmap
 
+def make_reward_map(rewards):
+    rmap = {}
+    for r in rewards:
+        cause = r['Cause']
+        if cause.name not in CAUSE_RULES:
+            raise ValueError(f'Unknown penalty cause: {cause}')
+        cause_rule = CAUSE_RULES[cause.name]
+        args = []
+        for idx, type in enumerate(cause_rule['args']):
+            arg = cause.arguments[idx]
+            args.append(conv_symbol(arg, type))
+        if cause_rule['target'] == '#wkndOffs':
+            add(rmap, args[0], ('#wkndOffs', 'C'), r)
+        else:
+            raise ValueError(f'Unknown cause target: {cause_rule['target']}')
 
-# def make_shift_table(atoms):
-#     make_shift_table_v2(atoms)
-#     header = None
-#     first_date = None
-#     width = None
-#     assigneds = []
-#     dates = []
-#     staffs = []
-#     staff_groups = []
-#     penalties = []
-#     requests = []
-#     htypes = []
-#     vtypes = []
-#     for atom in atoms:
-#         args = atom.arguments
-#         if atom.match("header", 1):
-#             header = args[0].string
-#         elif atom.match("first_full_date", 1):
-#             first_date = datetime.strptime(str(args[0].number), "%Y%m%d")
-#         elif atom.match("table_width", 1):
-#             width = args[0].number
-#         elif atom.match("ext_assigned", 3):
-#             assigneds.append({'No': args[0].number, 'Date': args[1].number, 'Shift': args[2].string})
-#         elif atom.match("out_date", 3):
-#             r_day = args[0].number
-#             a_day = args[1].number % 100
-#             dweek = args[2].string
-#             dates.append((r_day, a_day, dweek))
-#         elif atom.match("staff", 5):
-#             staffs.append({'No': args[0].number, 'Name': args[1].string, 'Job': args[2].string, 'ID': args[3].string, 'Point': args[4].number})
-#         elif atom.match("staff_group", 2):
-#             gname = args[0].string
-#             staff = args[1].number
-#             staff_groups.append({'StaffGroup': gname, 'No': staff})
-#         elif atom.match("penalty", 6):
-#             ctype = args[0]
-#             cause = args[1]
-#             req   = args[2].number
-#             res   = args[3].number
-#             w     = args[4].number
-#             p     = args[5].number
-#             penalties.append({
-#                 'Type': ctype,
-#                 'Cause': cause,
-#                 'Req': req,
-#                 'Res': res,
-#                 'P': p,
-#                 'W': w,
-#             })
-#         elif atom.match("pos_request", 3):
-#             requests.append({'Type': 'pos', 'No': args[0].number, 'Date': args[1].number, 'Shift': args[2].string})
-#         elif atom.match("neg_request", 3):
-#             requests.append({'Type': 'neg', 'No': args[0].number, 'Date': args[1].number, 'Shift': args[2].string})
-#         elif atom.match("horizontal_constraint_type", 1):
-#             shift_group  = args[0].string
-#             htypes.append(shift_group)
-#         elif atom.match("vertical_constraint_type", 3):
-#             staff_group = args[0].string
-#             shift_group = args[1].string
-#             obj_type = args[2].string
-#             vtypes.append({'StaffGroup': staff_group, 'ShiftGroup': shift_group, 'ObjType': obj_type})
-
-#     if len(assigneds) == 0:
-#         return None
-
-#     # Shift assignments
-#     df = pd.DataFrame(assigneds)
-
-#     # Checking duplicated entries
-#     duplicates = df[df.duplicated(subset=['No', 'Date'], keep=False)]
-#     if not duplicates.empty:
-#         print("=== Error: Duplicate Entries Detected ===")
-#         print(duplicates)
-#         print("=========================================")
-
-#     # ------------------------------------------------------------
-#     # Make the shift table
-#     df_tbl = df.pivot(index='No', columns='Date', values='Shift')
-
-#     # Add dates header to the shift table
-#     dates = sorted(dates)
-#     # Add missing dates
-#     for date in dates:
-#         if not date[0] in df_tbl.columns:
-#             df_tbl[date[0]] = None
-#     df_tbl = df_tbl.sort_index(axis='columns')
-#     df_tbl.columns = pd.MultiIndex.from_tuples(dates)
-
-#     # print(df_tbl)
-#     # self.print_shift_table(df_tbl)
-
-#     # ------------------------------------------------------------
-#     # Make the table of the number of assigned shifts (horizontal)
-#     cur_df = df[(0 <= df['Date']) & (df['Date'] <= width)]  # current month
-#     # print("1"); print(cur_df)
-#     # Extend the dataframe to count the number of assigned shift groups
-#     shift_groups = [sg for sg in htypes if '+' in sg]
-#     for shift_group in shift_groups:
-#         for shift in shift_group.split("+"):
-#             tmp_df = cur_df[cur_df['Shift'] == shift].copy()
-#             tmp_df['Shift'] = shift_group
-#             cur_df = pd.concat([cur_df, tmp_df])
-#     # print("(2)"); print(cur_df)
-#     gdf = cur_df.groupby(['No', 'Shift']).count().reset_index() # Count assigned shift groups
-#     gdf = gdf.pivot(index='No', columns='Shift', values='Date') # Convert to the table
-#     gdf = gdf.reindex(columns=htypes) # Change the column order
-#     gdf = gdf.fillna(0).astype(int) # Convert to int
-#     #print(gdf)
-#     df_shifts = gdf
-
-#     # ------------------------------------------------------------
-#     # Make the table of the number of assigned staffs (vertical)
-#     gdf = pd.DataFrame(staff_groups)
-#     #print(gdf)
-#     # Add staff group to df
-#     mdf = pd.merge(cur_df, gdf, on='No', how='outer')
-#     # print(mdf)
-#     # Add staff point to df
-#     sdf = pd.DataFrame(staffs)
-#     sdf = sdf[["No", "Point"]]
-#     mdf = pd.merge(mdf, sdf, on='No', how='outer')
-#     # print(mdf)
-#     # Extend the dataframe to count the number of assigned shift groups
-#     shift_groups = [vtype['ShiftGroup'] for vtype in vtypes if '+' in vtype['ShiftGroup']]
-#     shift_groups = list(dict.fromkeys(shift_groups))
-#     for shift_group in shift_groups:
-#         for shift in shift_group.split("+"):
-#             tmp_df = mdf[mdf['Shift'] == shift].copy()
-#             tmp_df['Shift'] = shift_group
-#             mdf = pd.concat([mdf, tmp_df])
-#     #print(mdf)
-#     mdf = mdf.groupby(['Date', 'StaffGroup', 'Shift']).agg({'Shift': 'count', 'Point': 'sum'})
-#     mdf = mdf.rename(columns={'Shift': 'Staffs', 'Point': 'Points'})
-#     mdf = mdf.stack().unstack('Date')
-#     #print(mdf)
-#     # Remove unconstrained rows
-#     idx = [(vtype['StaffGroup'], vtype['ShiftGroup'], vtype['ObjType']) for vtype in vtypes]
-#     mdf = mdf.reindex(idx)
-#     mdf = mdf.fillna(0).astype(int)  # Convert to int
-#     # Add days if not exist
-#     for date in range(0, width):
-#         if not (date in mdf.columns):
-#             mdf[date] = 0
-#     mdf = mdf.sort_index(axis='columns')
-#     df_staffs = mdf.rename(index={'Staffs': '#S', 'Points': '#P'})
-
-#     # ------------------------------------------------------------
-#     # Make the penalty mapping
-#     penalty_map = make_penalty_map(penalties)
-#     #print(f'penalty_map = {penalty_map}')
-
-#     # ------------------------------------------------------------
-#     # Make the assignment mapping for the explanation of penalties
-#     assigned_map = recursive_defaultdict()
-#     for a in assigneds:
-#         assigned_map[a["No"]][a["Date"]] = a["Shift"]
-
-#     # ------------------------------------------------------------
-#     # Make the request mapping for the explanation of penalties
-#     request_map = recursive_defaultdict()
-#     for r in requests:
-#         request_map[r["No"]][r["Date"]][r["Type"]].setdefault("Shift", []).append(r["Shift"])
-
-#     return ShiftTable(df_tbl, header, first_date, width, df_shifts, df_staffs, penalties, penalty_map, assigned_map, request_map)
-
-# def make_penalty_map(penalties):
-#     map = {}
-#     def add(row, col, p):
-#         if row not in map:
-#             map[row] = {}
-#         if col not in map[row]:
-#             map[row][col] = []
-#         map[row][col].append(p)
-
-#     staff_day_causes = [
-#         ("consecutive_work_days", 2),
-#         ("pos_request", 2),
-#         ("neg_request", 2),
-#         ("forbidden_pattern", 3),
-#         ("next_shift", 3),
-#         ("prev_shift", 3),
-#     ]
-#     for p in penalties:
-#         cause = p['Cause']
-#         args = cause.arguments
-#         if cause.match("work_days_lb", 1) or cause.match("work_days_ub", 1) or cause.match("weekly_rest_lb", 1) or cause.match("weekly_rest_ub", 1) or cause.match("pattern_lb", 2) or cause.match("pattern_ub", 2):
-#             staff = args[0].number
-#             add(staff, -8, p)
-#         elif cause.match("shift_lb", 2) or cause.match("shift_ub", 2):
-#             staff = args[0].number
-#             shift_group = args[1].string
-#             add(staff, shift_group, p)
-#         elif cause.match("staff_lb", 3) or cause.match("staff_ub", 3):
-#             staff_group = args[0].string
-#             shift_group = args[1].string
-#             day = args[2].number
-#             row = (staff_group, shift_group, "#S")
-#             add(row, day, p)
-#         elif any(cause.match(name, args) for name, args in staff_day_causes):
-#             staff = args[0].number
-#             day = args[1].number
-#             add(staff, day, p)
-#         elif cause.match("recommended_night_pair", 2):
-#             staff1 = args[0].number
-#             staff2 = args[1].number
-#             add(staff1, -8, p)
-#             add(staff2, -8, p)
-#         elif cause.match("forbidden_night_pair", 3):
-#             staff1 = args[0].number
-#             staff2 = args[1].number
-#             day = args[2].number
-#             add(staff1, day, p)
-#             add(staff2, day, p)
-#         else:
-#             raise ValueError(f'Unknown penalty cause: {cause}')
-
-#     return map
-
-# def print_shift_table(table):
-
-#     def has_request(row, col):
-#         if row in table.request_map:
-#             return col in table.request_map[row]
-#         return False
-
-#     def has_penalty(row, col):
-#         if row in table.penalty_map:
-#             return col in table.penalty_map[row]
-#         return False
-
-#     def format_main_cell(val, row, col):
-#         w = col_headers[2][col]
-#         c = ""
-#         if row < 3:
-#             if w == "Sa":
-#                 c = Fore.BLUE
-#             elif w == "Su" or w == "PH":
-#                 c = Fore.RED
-#         elif col > 0:
-#             if val == "D":
-#                 c = Fore.GREEN
-#             elif val == "LD" or val == "SE" or val == "SN":
-#                 c = Fore.CYAN
-#             elif val == "E" or val == "N":
-#                 c = Fore.BLUE
-#             elif val == "EM" or val == "LM":
-#                 c = Fore.YELLOW
-#             elif val == "WR" or val == "PH":
-#                 c = Style.DIM
-#             else:
-#                 c = Fore.MAGENTA
-#         if has_request(row - 2, col - 8):
-#             c = Fore.BLACK + Back.GREEN
-#         if has_penalty(row - 2, col - 8):
-#             c = Back.RED
-#         return c + str(val).center(2) + Style.RESET_ALL
-
-#     df = table.df.fillna("  ")
-#     col_headers = [[""] + list(col) for col in zip(*df.columns.tolist())]
-#     data_rows = [[index] + row.tolist() for index, row in zip(df.index, df.values)]
-#     main_table = col_headers + data_rows
-
-#     # Formatting cells
-#     main_table = [
-#         [format_main_cell(value, row_idx, col_idx) for col_idx, value in enumerate(row)]
-#         for row_idx, row in enumerate(main_table)
-#     ]
-#     # Add the current month
-#     if table.first_date:
-#         month = (table.first_date - timedelta(days=7)).month
-#         main_table[1][0] = ["Ja", "Fe", "Ma", "Ap", "My", "Ju", "Jl", "Au", "Se", "Oc", "No", "De"][month-1]
-
-#     def format_right_cell(val, row, shift_group, width):
-#         c = ""
-#         if has_penalty(row, shift_group):
-#             c = Back.RED
-#         return c + str(val).center(width) + Style.RESET_ALL
-
-#     # Make the right table of the number of assgned shifts
-#     col_headers = list(table.df_shifts.columns)
-#     col_width = list(map(len, col_headers))
-#     col_width = list(map(lambda n: max(2, n), col_width))
-#     right_width = sum(col_width) + len(col_headers)
-#     data_rows = table.df_shifts.values.tolist()
-#     right_table = [col_headers] + data_rows
-#     right_table = [
-#         [format_right_cell(value, row_idx, col_headers[col_idx], col_width[col_idx]) for col_idx, value in enumerate(row)]
-#         for row_idx, row in enumerate(right_table)
-#     ]
-
-#     def format_bottom_cell(val, idx, day):
-#         c = ""
-#         if has_penalty(idx, day):
-#             c = Back.RED
-#         return c + str(val).center(2) + Style.RESET_ALL
-
-#     # Make the bottom table of the number of assgned staffs
-#     idx_headers = list(table.df_staffs.index)
-#     idx_width = [max(len(tup[i]) for tup in idx_headers) for i in range(3)]
-#     botom_idx_width = sum(idx_width) + len(idx_width) - 1
-#     botom_padding = main_padding = 0
-#     if botom_idx_width < 25:   # 25 = 2 + 2 + 7 * 3
-#         botom_padding = 25 - botom_idx_width
-#     else:
-#         main_padding = botom_idx_width - 25
-#     bottom_table = table.df_staffs.values.tolist()
-#     bottom_table = [
-#         [format_bottom_cell(value, idx_headers[row_idx], col_idx) for col_idx, value in enumerate(row)]
-#         for row_idx, row in enumerate(bottom_table)
-#     ]
-
-#     if table.title:
-#         print(table.title)
-#     hrule = "-" * (main_padding + 3 * (table.width + 14 + 4) + right_width) # 14 days and 3 separators
-#     for idx, row in enumerate(main_table):
-#         # Main table
-#         if idx == 3:
-#             print(hrule)
-#         line = ' ' * main_padding
-#         line += row[0] + " | "
-#         line += ' '.join(row[1:8]) + " | "
-#         line += ' '.join(row[8:table.width + 8]) + " | "
-#         line += ' '.join(row[table.width + 8:]) + " | "
-#         # Right table
-#         if 1 == idx:
-#             line += '# assigned shifts'.center(right_width)
-#         elif 2 <= idx:
-#             line += ' '.join(right_table[idx - 2])
-#         print(line)
-#     print(hrule)
-#     # Bottom table
-#     for idx, row in enumerate(bottom_table):
-#         line = ' ' * botom_padding
-#         header = idx_headers[idx]
-#         header = [header[i].ljust(idx_width[i]) for i in range(3)]
-#         header = ' '.join(header)
-#         line += header + " | "
-#         line += ' '.join(row) + " |"
-#         print(line)
-
-#     # Penalties
-#     if len(table.penalties) > 0:
-#         for p in table.penalties:
-#             c = p['Cause']
-#             args = c.arguments
-#             if c.match("pos_request", 2):
-#                 staff = args[0].number
-#                 date = args[1].number
-#                 p['Req'] = ','.join(table.request_map[staff][date]['pos']['Shift'])
-#                 p['Res'] = table.assigned_map[staff][date]
-#             elif c.match("forbidden_pattern", 3):
-#                 p['Req'] = p['Res'] = args[2].string
-#             elif c.match("forbidden_night_pair", 3):
-#                 staff1 = args[0].number
-#                 staff2 = args[1].number
-#                 date = args[2].number
-#                 p['Req'] = table.assigned_map[staff1][date]
-#                 p['Res'] = table.assigned_map[staff2][date]
-
-#         pf = pd.DataFrame(table.penalties)
-#         pf = pf.sort_values(['P', 'W', 'Type', 'Cause'], ascending=[False, False, True, True], ignore_index=True)
-
-#         pf.index += 1
-#         print("Penalties:")
-#         print(pf[['P', 'W', 'Type', 'Cause', 'Req', 'Res']].to_string())
-#     else:
-#         print("Penalties:")
-#         print("  None")
-#     print()
+    return rmap
 
 def read_model(file):
     try:
@@ -888,7 +536,6 @@ def read_model(file):
         table.display()
     else:
         print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
-
 
 def monitor_file(file, interval):
     """Monitor the file for changes and reload when updated."""

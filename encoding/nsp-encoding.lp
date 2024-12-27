@@ -233,7 +233,7 @@ num_curr_weekend_offs(N, X) :-
 num_weekend_offs(N, P, C, P+C) :- num_past_weekend_offs(N, P), num_curr_weekend_offs(N, C).
 
 % Reward if weekend rest is assigned to nurses with fewer past weekend rests.
-achievement(weekend_offs(N), PAST_MAX - PAST_OWN) :-
+achievement(weekend_offs(N), PAST_MAX - PAST_OWN + 1) :-
     staff(N),
     num_curr_weekend_offs(N, X),
     X > 0,
