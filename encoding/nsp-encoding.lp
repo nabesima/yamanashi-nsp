@@ -240,15 +240,22 @@ achievement(weekend_offs(N), PAST_MAX - PAST_OWN + 1) :-
     num_past_weekend_offs(N, PAST_OWN),
     max_past_weekend_offs(PAST_MAX).
 
+num_curr_public_holiday_offs(N, X) :-
+    staff(N),
+    X = { ext_assigned(N, D, "PH") : date(D) }.
+num_public_holiday_offs(N, P, C, P+C) :- num_past_public_holiday_offs(N, P), num_curr_public_holiday_offs(N, C).
 
+% Reward if public holiday off is assigned to nurses with fewer past public holiday offs.
+achievement(public_holiday_offs(N), PAST_MAX - PAST_OWN + 1) :-
+    staff(N),
+    num_curr_public_holiday_offs(N, X),
+    X > 0,
+    num_past_public_holiday_offs(N, PAST_OWN),
+    max_past_public_holiday_offs(PAST_MAX).
 
-
-% reward(weekend_offs(N, X), staff(N), RWD * (PAST_MAX + 4 - X), PRI) :-
+% num_curr_consecutive_holidays(N, X) :-
 %     staff(N),
-%     0 < { date(D, "日") : ext_assigned(N, D, S2), ext_assigned(N, D-1, S1), regular_holiday_shift(S1), regular_holiday_shift(S2) },
-%     num_past_weekend_offs(N, X),
-%     max_past_weekend_offs(PAST_MAX),
-%     _reward("weekend_offs", RWD), _priority("weekend_offs", PRI).
+%     X = { ext_assigned(N, D-2) : ext_regular_holiday_off(N, D-1), ext_regular_holiday_off(N, D), date(D) }.
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % % 連休に関する制約
@@ -260,18 +267,6 @@ achievement(weekend_offs(N), PAST_MAX - PAST_OWN + 1) :-
 %     num_past_consecutive_holidays(N, X),
 %     max_past_consecutive_holidays(PAST_MAX),
 %     _reward("consecutive_holidays", RWD), _priority("consecutive_holidays", PRI).
-
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% % 祝日休に関する制約
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% reward(national_holiday_offs(N, X), staff(N), RWD * (PAST_MAX + CURR_MAX - X), PRI) :-
-%     staff(N),
-%     0 < { national_holiday_off(N, _) },
-%     num_past_national_holiday_offs(N, X),
-%     max_past_national_holiday_offs(PAST_MAX),
-%     num_national_holidays(CURR_MAX),
-%     _reward("national_holiday_off", RWD), _priority("national_holiday_off", PRI).
 
 
 %----------------------------------------------------------------------
@@ -343,6 +338,7 @@ cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(S, _).
 cause_type(recommended_night_pair(N1, N2)) :- recommended_night_pair(N1, N2, _).
 cause_type(forbidden_night_pair(N1, N2, D)) :- forbidden_night_pair(N1, N2), date(D).
 cause_type(weekend_offs(N)) :- staff(N).
+cause_type(public_holiday_offs(N)) :- staff(N).
 
 %----------------------------------------------------------------------
 % Priority of penalty and reward

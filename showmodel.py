@@ -112,7 +112,7 @@ class ShiftTable:
             ad = col[1]
             dw = col[2]
             rd = col[3]
-            style = Fore.BLUE if dw == 'Sa' else Fore.RED if dw == 'Su' else None
+            style = Fore.BLUE if dw == 'Sa' else Fore.RED if dw == 'Su' or dw == 'PH' else None
             border = True if rd == -1 or rd == width - 1 or rd == width + 6 else False
             self.cells['ADay' ][rd] = Cell(str(ad), style=style, right_border=border)
             self.cells['Dweek'][rd] = Cell(str(dw), style=style, right_border=border)
@@ -147,7 +147,7 @@ class ShiftTable:
         for idx, col in enumerate(self.right_df.columns):
             t = col[1]
             border = True if idx+1 in borders else False
-            self.cells['RDay'][t] = Cell(t, right_border=border)
+            self.cells['RDay'][col] = Cell(t, right_border=border)
 
         for no, row in self.right_df.iterrows():
             # row = row.droplevel(0)
@@ -255,6 +255,7 @@ ATOM_RULES = {
     'horizontal_constraint_type': ['str'],
     'vertical_constraint_type': [('StaffGroup', 'str'), ('ShiftGroup', 'str'), ('ObjType', 'str')],
     'num_weekend_offs': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
+    'num_public_holiday_offs': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
 }
 
 CAUSE_RULES = {
@@ -262,7 +263,6 @@ CAUSE_RULES = {
     'work_days_ub':   { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_lb': { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_ub': { 'target': 'staff', 'args': ['num'] },
-    'weekend_offs':   { 'target': '#wkndOffs', 'args': ['num'] },
 
     'shift_lb': { 'target': 'shifts', 'args': ['num', 'str'] },
     'shift_ub': { 'target': 'shifts', 'args': ['num', 'str'] },
@@ -280,6 +280,9 @@ CAUSE_RULES = {
     'recommended_night_pair': { 'target': 'staff-pair', 'args': ['num', 'num'] },
 
     'forbidden_night_pair':   { 'target': 'staff-pair-day', 'args': ['num', 'num', 'num'] },
+
+    'weekend_offs':   { 'target': '#wkndOffs', 'args': ['num'] },
+    'public_holiday_offs':   { 'target': '#phOffs', 'args': ['num'] },
 }
 
 def conv_symbol(sym: clingo.Symbol, type: str):
@@ -373,14 +376,13 @@ def make_shift_table(atoms: list[clingo.Symbol]):
         right_df = pd.concat([right_df, sdf], axis=1)
         #print(right_df)
 
-    # # 祝日休暇数を追加
-    # if 'num_national_holiday_offs' in statistics:
-    #     sdf = pd.DataFrame(statistics['num_national_holiday_offs'])
-    #     sdf = sdf.set_index('staff')
-    #     sdf.columns = pd.MultiIndex.from_product([['祝日休暇数'], ['過去', '当月', '合計']])
-    #     #print(sdf)
-    #     df_shifts = pd.concat([df_shifts, sdf], axis=1)
-    #     #print(df_shifts)
+    # Add the number of public holiday offs if exists
+    if 'num_public_holiday_offs' in model:
+        sdf = pd.DataFrame(model['num_public_holiday_offs'])
+        sdf = sdf.set_index('No')
+        sdf.columns = pd.MultiIndex.from_product([['#phOffs'], list(sdf.columns)])
+        right_df = pd.concat([right_df, sdf], axis=1)
+        #print(right_df)
 
     # # 連続休暇数を追加
     # if 'num_consecutive_holidays' in statistics:
@@ -505,16 +507,17 @@ def make_reward_map(rewards):
     for r in rewards:
         cause = r['Cause']
         if cause.name not in CAUSE_RULES:
-            raise ValueError(f'Unknown penalty cause: {cause}')
+            raise ValueError(f'Unknown reward cause: {cause}')
         cause_rule = CAUSE_RULES[cause.name]
         args = []
         for idx, type in enumerate(cause_rule['args']):
             arg = cause.arguments[idx]
             args.append(conv_symbol(arg, type))
-        if cause_rule['target'] == '#wkndOffs':
-            add(rmap, args[0], ('#wkndOffs', 'C'), r)
+        target = cause_rule['target']
+        if target == '#wkndOffs' or target == '#phOffs':
+            add(rmap, args[0], (target, 'C'), r)
         else:
-            raise ValueError(f'Unknown cause target: {cause_rule['target']}')
+            raise ValueError(f'Unknown cause target: {target}')
 
     return rmap
 
