@@ -11,7 +11,7 @@ import argparse
 
 from colorama import Fore, Style
 import colorama
-from showmodel import make_shift_table, print_shift_table
+from showmodel import make_shift_table
 
 # An event flag to signal when the solving process should stop (e.g., triggered by Ctrl+C).
 stop_event = threading.Event()
@@ -158,7 +158,7 @@ class NSPSolver:
         if self.show_table:
             table = make_shift_table(model.symbols(atoms=True))
             if table:
-                print_shift_table(table)
+                table.display()
             else:
                 print("Error: model contains no shift assignments (ext_assigned/3).")
 
