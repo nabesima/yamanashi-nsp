@@ -547,7 +547,25 @@ def read_model(file):
         print(f"Error: File '{file}' not found.")
         sys.exit(1)
 
-    atoms = parse_model(content)
+    lines = content.split("\n")
+    facts = []
+    # If it's the output from clingo, display the last model
+    if lines[0].startswith("clingo version"):
+        last_index = next((i for i in reversed(range(len(lines))) if lines[i].startswith("Answer:")), -1)
+        if last_index == -1 or len(lines) <= last_index + 1:
+            print(f"Error: file '{file}' contains no model.")
+            return
+        facts = (lines[last_index+1] + " ").split(") ")
+        facts = [fact + ")" for fact in facts if fact]
+        header = lines[last_index]
+        if last_index + 2 < len(lines) and lines[last_index+2].startswith("Optimization:"):
+            header += ", " + lines[last_index+2]
+        facts = [f'header("{header}")'] + facts
+    # Otherwise, display the found model by nspsolver.py
+    else:
+        facts = [fact.rstrip(".") for fact in lines]
+
+    atoms = parse_model(facts)
     table = make_shift_table(atoms)
     if table:
         table.display()
@@ -568,16 +586,14 @@ def monitor_file(file, interval):
             print(f"File '{file}' not found. Waiting for it to be created...")
             time.sleep(interval)
 
-def parse_model(content):
+def parse_model(facts):
     atoms = []
-    for fact in content.split("\n"):
-        fact = fact.strip().rstrip(".")
-        if fact:  # Skip empty strings
-            try:
-                atom = clingo.parse_term(fact)
-                atoms.append(atom)
-            except RuntimeError as e:
-                print(f"Error parsing fact '{fact}': {e}")
+    try:
+        for fact in facts:
+            atom = clingo.parse_term(fact)
+            atoms.append(atom)
+    except RuntimeError as e:
+        print(f"Error parsing fact '{fact}': {e}")
     return atoms
 
 def main():
