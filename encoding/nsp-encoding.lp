@@ -433,11 +433,6 @@ dep_priority(C, 2) :- cause_type(C), C = (staff_lb(_,_,_);staff_ub(_,_,_);point_
 out_date(D, FD, W)    :- base_date(D, FD, W), not public_holiday(D).
 out_date(D, FD, "PH") :- base_date(D, FD, W), public_holiday(D).
 
-#show.
-#show ext_assigned/3.
-#show out_date/3.
-#show penalty/6.
-
 %*
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 看護師ごとのシフトの上下限制約
