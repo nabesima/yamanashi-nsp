@@ -96,25 +96,20 @@ workable_date(N, D) :-
     not na_request(N, D).
 
 % Days on which weekly rest shift can be assigned
-weekly_rest_date(N, D) :-
+weekly_rest_available_date(N, D) :-
     staff(N),
     workable_date(N, D),
     not leave_request(N, D),
-    not public_holiday(N, D).
+    not public_holiday_available_date(N, D).
 
 % Days on which public holiday offs can be assigned
-public_holiday(N, D) :-
+public_holiday_available_date(N, D) :-
     staff(N),
     date(D),
     public_holiday(D),
     not business_request(N, D),
     not leave_request(N, D),
     not na_request(N, D).
-
-% % Non_work_date = weekly_rest_date + public_holiday + leave_request
-% non_work_date(N, D) :- weekly_rest_date(N, D).
-% non_work_date(N, D) :- public_holiday(N, D).
-% non_work_date(N, D) :- leave_request(N, D).
 
 % Number of requested business days
 num_business_days(N, X) :-
@@ -133,8 +128,8 @@ num_na_days(N, X) :-
 %----------------------------------------------------------------------
 
 % Number of days that can be assigned as public holidays
-num_public_holidays(N, X) :-
-    staff(N), X = { public_holiday(N, D) }.
+num_available_public_holidays(N, X) :-
+    staff(N), X = { public_holiday_available_date(N, D) }.
 
 % Number of weekly rests for each nurse
 weekly_rest_bounds(N, LB, UB) :-
@@ -154,7 +149,7 @@ work_days_bounds(N, LB, UB) :-
     weekly_rest_bounds(N, WR_LB, WR_UB),
     num_na_days(N, NA),
     num_business_days(N, B),
-    num_public_holidays(N, PH),
+    num_available_public_holidays(N, PH),
     num_req_leave_days(N, RL),
     UB = WIDTH - WR_LB - NA - B,
     LB = WIDTH - WR_UB - NA - B - PH - RL.

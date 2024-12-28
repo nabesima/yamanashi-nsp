@@ -33,15 +33,15 @@ violation(hard, work_days_ub(N), UB, X) :-
 % when there are public holidays or requested leaves)
 violation(hard, weekly_rest_lb(N), LB, X) :-
     weekly_rest_bounds(N, LB, UB),
-    X = { not assigned(N, D) : weekly_rest_date(N, D) },
+    X = { not assigned(N, D) : weekly_rest_available_date(N, D) },
     X < LB.
 violation(hard, weekly_rest_ub(N), UB, X) :-
     weekly_rest_bounds(N, LB, UB),
-    X = { not assigned(N, D) : weekly_rest_date(N, D) },
+    X = { not assigned(N, D) : weekly_rest_available_date(N, D) },
     UB < X.
 
 % Original:
-% LB { not assigned(N, D) : weekly_rest_date(N, D) } UB :-
+% LB { not assigned(N, D) : weekly_rest_available_date(N, D) } UB :-
 %     weekly_rest_bounds(N, LB, UB), not soften_hard.
 
 %----------------------------------------------------------------------
@@ -108,12 +108,12 @@ full_work_period(N, BD, ED) :-
     staff(N),
     consecutive_work_ub(UB),
     base_date(BD), ED=BD+UB-1, base_date(ED), -1 <= ED,
-    work_date(N, D) : D = BD..ED.
+    work_day(N, D) : D = BD..ED.
 
 % Each nurse must not exceed the full consecutive working days.
 violation(hard, consecutive_work_days(N, BD), UB, UB+1) :-
     full_work_period(N, BD, ED),
-    work_date(N, ED+1),
+    work_day(N, ED+1),
     consecutive_work_ub(UB).
 
 % A shift requiring next-day work is not assigned on the last day of a full consecutive period.
@@ -230,12 +230,26 @@ recommended_night_pair(dummy, dummy, dummy).
 forbidden_night_pair(dummy, dummy).
 
 %----------------------------------------------------------------------
+% Constraints on isolated work days
+%----------------------------------------------------------------------
+isolated_work_day(N, D+1) :-
+    staff(N),
+    date(D+2),
+    ext_assigned(N, D+2, S2),
+    ext_assigned(N, D+1, S1),
+    ext_assigned(N, D+0, S0).
+
+% penalty(isolated_working_day(N, FD), table(N, D), PNL, PRI) :-
+%     isolated_working_day(N, D), date2fulldate(D, FD), not allow_isolated_working_day,
+%     _penalty("isolated_working_day", PNL), _priority("isolated_working_day", PRI).
+
+%----------------------------------------------------------------------
 % Constraints related to rewards
 %----------------------------------------------------------------------
 
 num_curr_weekend_offs(N, X) :-
     staff(N),
-    X = { date(D, "Su") : ext_assigned(N, D, S2), ext_assigned(N, D-1, S1), rest_shift(S1), rest_shift(S2) }.
+    X = { date(D, "Su") : rest_day(N, D), rest_day(N, D-1) }.
 num_weekend_offs(N, P, C, P+C) :-
     num_past_weekend_offs(N, P),
     num_curr_weekend_offs(N, C).
@@ -265,20 +279,14 @@ achievement(public_holiday_offs(N), PAST_MAX - PAST_OWN + 1) :-
 
 num_curr_consecutive_rests(N, X) :-
     staff(N),
-    X = { ext_assigned(N, D, S0) :
-            ext_assigned(N, D+1, S1),
-            ext_assigned(N, D+2, S2),
-            date(D+2),
-            work_shift(S0),
-            rest_shift(S1),
-            rest_shift(S2) ;
+    X = { work_day(N, D) :
+            rest_day(N, D+1),
+            rest_day(N, D+2),
+            date(D+2) ;
           not ext_assigned(N, D, _) :
-            ext_assigned(N, D+1, S1),
-            ext_assigned(N, D+2, S2),
-            date(D+2),
-            rest_shift(S1),
-            rest_shift(S2)
-        }.
+            rest_day(N, D+1),
+            rest_day(N, D+2),
+            date(D+2) }.
 num_consecutive_rests(N, P, C, P+C) :-
     num_past_consecutive_rests(N, P),
     num_curr_consecutive_rests(N, C).
@@ -298,13 +306,17 @@ achievement(consecutive_rests(N), PAST_MAX - PAST_OWN + 1) :-
 % Extends 'assigned/3' to 'ext_assigned/3'
 ext_assigned(N, D, S) :- assigned(N, D, S).
 ext_assigned(N, D, S) :- not assigned(N, D), fixed_request(N ,D), pos_request(N, D, S).
-ext_assigned(N, D, "WR") :- not assigned(N, D), weekly_rest_date(N, D).
-ext_assigned(N, D, "PH") :- not assigned(N, D), public_holiday(N, D).
+ext_assigned(N, D, "WR") :- not assigned(N, D), weekly_rest_available_date(N, D).
+ext_assigned(N, D, "PH") :- not assigned(N, D), public_holiday_available_date(N, D).
 
-% work_date/2 represents working days not only for the current month
+% work_day/2 represents working days not only for the current month
 % but also for the previous and next months.
-work_date(N, D) :- ext_assigned(N, D, S), work_shift(S).
-work_date(N, D) :- ext_assigned(N, D, S), business_shift(S).
+work_day(N, D) :- ext_assigned(N, D, S), work_shift(S).
+work_day(N, D) :- ext_assigned(N, D, S), business_shift(S).
+
+% rest_day/2 represents rest days not only for the current month
+% but also for the previous and next months.
+rest_day(N, D) :- ext_assigned(N, D, S), rest_shift(S).
 
 %----------------------------------------------------------------------
 % Hard constraints
