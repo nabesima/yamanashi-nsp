@@ -266,6 +266,7 @@ CAUSE_RULES = {
     'work_days_ub':   { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_lb': { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_ub': { 'target': 'staff', 'args': ['num'] },
+    'eq_shifts':      { 'target': 'staff', 'args': ['num'] },
     'pattern_lb':     { 'target': 'staff', 'args': ['num', 'str'] },
     'pattern_ub':     { 'target': 'staff', 'args': ['num', 'str'] },
 

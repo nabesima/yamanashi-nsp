@@ -93,7 +93,8 @@ violation(T, shift_ub(N, SG), UB, X) :-
     UB < X.
 
 % Ensure equal assignment of shift LD, SE
-:- staff(N),
+violation(hard, eq_shifts(N)) :-
+    staff(N),
     not 0 #sum{  1, D : assigned(N, D, "LD") ;
                 -1, D : assigned(N, D, "SE") } 0.
 
@@ -269,61 +270,6 @@ violation(soft, adjacent_rest_days(N, BD)) :-
     work_day(N, BD-1),
     work_day(N, ED+1).
 
-% penalty(adjacent_holiday(N, FBD, FED), table(N, BD), PNL, PRI) :-
-%     requested_holidays_period(N, BD, ED),
-%     _adjacent_holiday_limit(LEN),
-%     ED - BD + 1 < LEN,
-%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
-%     ext_assigned(N, BD-1), ext_assigned(N, ED+1),
-%     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
-
-% :- hard_adjacent_holiday(N), not soft_all,
-%     requested_holidays_period(N, BD, ED),
-%     _adjacent_holiday_limit(LEN),
-%     ED - BD + 1 < LEN,
-%     ext_assigned(N, BD-1), ext_assigned(N, ED+1).
-
-% % ソフト休暇の出現期間
-% requested_holidays_period(N, BD, ED) :-
-%     staff(N), date(BD), date(ED), BD <= ED,
-%     not staff_request(N, ((BD-1);(ED+1))),
-%     %not staff_valid_holiday_request(N, BD-1),
-%     %staff_valid_holiday_request(N, D) : D = BD..ED;  % 前処理（探索なし）なので基礎化しても大きく爆発しない
-%     %not staff_valid_holiday_request(N, ED+1),
-%     %1 { ext_assigned(N, D, S) : D = BD..ED, soft_holiday_shift(S) }.  % 少なくとも１つはソフト休暇（年，健）が含まれること（週休の希望の前後に週休は割り当てない）
-%     not staff_soft_holiday_request(N, BD-1),
-%     staff_soft_holiday_request(N, D) : D = BD..ED;  % 前処理（探索なし）なので基礎化しても大きく爆発しない
-%     not staff_soft_holiday_request(N, ED+1).
-
-
-% % 希望休暇の前後に週休を割り当てる基準となる連続休暇数（これ未満の連続休暇の前後に週休を割り当てる）
-% def_adjacent_holiday_limit(28).
-% _adjacent_holiday_limit(X) :- adjacent_holiday_limit(X).
-% _adjacent_holiday_limit(X) :- not adjacent_holiday_limit(_), def_adjacent_holiday_limit(X).
-
-% % ソフト休暇の前後のいずれかには週休を入れる
-% :- hard_adjacent_holiday(N), not soft_all,
-%     requested_holidays_period(N, BD, ED),
-%     _adjacent_holiday_limit(LEN),
-%     ED - BD + 1 < LEN,
-%     ext_assigned(N, BD-1), ext_assigned(N, ED+1).
-
-% penalty(adjacent_holiday(N, FBD, FED), table(N, BD), PNL, PRI) :-
-%     requested_holidays_period(N, BD, ED),
-%     _adjacent_holiday_limit(LEN),
-%     ED - BD + 1 < LEN,
-%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
-%     ext_assigned(N, BD-1), ext_assigned(N, ED+1),
-%     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
-
-% penalty(adjacent_working_day(N, FBD, FED), table(N, BD), PNL, PRI) :-
-%     requested_holidays_period(N, BD, ED),
-%     _adjacent_holiday_limit(LEN),
-%     ED - BD + 1 >= LEN,
-%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
-%     1 {regular_holiday_off(N, BD-1) ; regular_holiday_off(N, ED+1)},
-%     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
-
 %----------------------------------------------------------------------
 % Constraints related to rewards
 %----------------------------------------------------------------------
@@ -442,6 +388,7 @@ cause_type(point_lb(NG, SG, D)) :- point_lb(_, NG, SG, D, _).
 cause_type(point_ub(NG, SG, D)) :- point_ub(_, NG, SG, D, _).
 cause_type(shift_lb(N, SG)) :- shift_lb(_, N, SG, _).
 cause_type(shift_ub(N, SG)) :- shift_ub(_, N, SG, _).
+cause_type(eq_shifts(N)) :- staff(N).
 cause_type(consecutive_work_days(N, D)) :- staff(N), base_date(D).
 cause_type(pos_request(N, D)) :- pos_request(N, D).
 cause_type(neg_request(N, D)) :- neg_request(N, D).
