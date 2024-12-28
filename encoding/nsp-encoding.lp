@@ -212,16 +212,22 @@ violation(hard, prev_shift(N, D, S)) :-
 
 % Recommended night shift pairs must be assigned the same night shift at least the specified number of times.
 violation(soft, recommended_night_pair(N1, N2), LB, X) :-
+    staff(N1), staff(N2),
     recommended_night_pair(N1, N2, LB),
     X = { date(D) : night_work_shift(S), assigned(N1, D, S), assigned(N2, D, S) },
     X < LB.
 
 % Forbidden night shift pairs must not share night shifts.
 violation(soft, forbidden_night_pair(N1, N2, D)) :-
+    staff(N1), staff(N2),
     forbidden_night_pair(N1, N2),
     night_work_shift(S),
     assigned(N1, D, S),
     assigned(N2, D, S).
+
+% Suppresses warnings when there are no night pairs
+recommended_night_pair(dummy, dummy, dummy).
+forbidden_night_pair(dummy, dummy).
 
 %----------------------------------------------------------------------
 % Constraints related to rewards
@@ -230,7 +236,9 @@ violation(soft, forbidden_night_pair(N1, N2, D)) :-
 num_curr_weekend_offs(N, X) :-
     staff(N),
     X = { date(D, "Su") : ext_assigned(N, D, S2), ext_assigned(N, D-1, S1), rest_shift(S1), rest_shift(S2) }.
-num_weekend_offs(N, P, C, P+C) :- num_past_weekend_offs(N, P), num_curr_weekend_offs(N, C).
+num_weekend_offs(N, P, C, P+C) :-
+    num_past_weekend_offs(N, P),
+    num_curr_weekend_offs(N, C).
 
 % Reward if weekend rest is assigned to nurses with fewer past weekend rests.
 achievement(weekend_offs(N), PAST_MAX - PAST_OWN + 1) :-
@@ -243,7 +251,9 @@ achievement(weekend_offs(N), PAST_MAX - PAST_OWN + 1) :-
 num_curr_public_holiday_offs(N, X) :-
     staff(N),
     X = { ext_assigned(N, D, "PH") : date(D) }.
-num_public_holiday_offs(N, P, C, P+C) :- num_past_public_holiday_offs(N, P), num_curr_public_holiday_offs(N, C).
+num_public_holiday_offs(N, P, C, P+C) :-
+    num_past_public_holiday_offs(N, P),
+    num_curr_public_holiday_offs(N, C).
 
 % Reward if public holiday off is assigned to nurses with fewer past public holiday offs.
 achievement(public_holiday_offs(N), PAST_MAX - PAST_OWN + 1) :-
@@ -253,21 +263,33 @@ achievement(public_holiday_offs(N), PAST_MAX - PAST_OWN + 1) :-
     num_past_public_holiday_offs(N, PAST_OWN),
     max_past_public_holiday_offs(PAST_MAX).
 
-% num_curr_consecutive_holidays(N, X) :-
-%     staff(N),
-%     X = { ext_assigned(N, D-2) : ext_regular_holiday_off(N, D-1), ext_regular_holiday_off(N, D), date(D) }.
+num_curr_consecutive_rests(N, X) :-
+    staff(N),
+    X = { ext_assigned(N, D, S0) :
+            ext_assigned(N, D+1, S1),
+            ext_assigned(N, D+2, S2),
+            date(D+2),
+            work_shift(S0),
+            rest_shift(S1),
+            rest_shift(S2) ;
+          not ext_assigned(N, D, _) :
+            ext_assigned(N, D+1, S1),
+            ext_assigned(N, D+2, S2),
+            date(D+2),
+            rest_shift(S1),
+            rest_shift(S2)
+        }.
+num_consecutive_rests(N, P, C, P+C) :-
+    num_past_consecutive_rests(N, P),
+    num_curr_consecutive_rests(N, C).
 
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% % 連休に関する制約
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% reward(consecutive_holidays(N, X), staff(N), RWD * (PAST_MAX + 4 - X), PRI) :-
-%     staff(N),
-%     0 < { ext_assigned(N, D-2) : ext_regular_holiday_off(N, D-1), ext_regular_holiday_off(N, D), date(D) },
-%     num_past_consecutive_holidays(N, X),
-%     max_past_consecutive_holidays(PAST_MAX),
-%     _reward("consecutive_holidays", RWD), _priority("consecutive_holidays", PRI).
-
+% Reward if consecutive rests are assigned to nurses with fewer past consecutive rests
+achievement(consecutive_rests(N), PAST_MAX - PAST_OWN + 1) :-
+    staff(N),
+    num_curr_consecutive_rests(N, X),
+    X > 0,
+    num_past_consecutive_rests(N, PAST_OWN),
+    max_past_consecutive_rests(PAST_MAX).
 
 %----------------------------------------------------------------------
 % Auxiliary predicates
@@ -339,6 +361,7 @@ cause_type(recommended_night_pair(N1, N2)) :- recommended_night_pair(N1, N2, _).
 cause_type(forbidden_night_pair(N1, N2, D)) :- forbidden_night_pair(N1, N2), date(D).
 cause_type(weekend_offs(N)) :- staff(N).
 cause_type(public_holiday_offs(N)) :- staff(N).
+cause_type(consecutive_rests(N)) :- staff(N).
 
 %----------------------------------------------------------------------
 % Priority of penalty and reward

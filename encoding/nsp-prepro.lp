@@ -282,6 +282,12 @@ num_past_consecutive_rests(N, X) :-
             past_date(D+2),
             work_shift(S0),
             rest_shift(S1),
+            rest_shift(S2) ;
+          not shift_data(N, D, _) :
+            shift_data(N, D+1, S1),
+            shift_data(N, D+2, S2),
+            past_date(D+2),
+            rest_shift(S1),
             rest_shift(S2)
         }.
 % The number of consecutive days off

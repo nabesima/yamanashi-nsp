@@ -256,6 +256,7 @@ ATOM_RULES = {
     'vertical_constraint_type': [('StaffGroup', 'str'), ('ShiftGroup', 'str'), ('ObjType', 'str')],
     'num_weekend_offs': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
     'num_public_holiday_offs': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
+    'num_consecutive_rests': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
 }
 
 CAUSE_RULES = {
@@ -281,8 +282,9 @@ CAUSE_RULES = {
 
     'forbidden_night_pair':   { 'target': 'staff-pair-day', 'args': ['num', 'num', 'num'] },
 
-    'weekend_offs':   { 'target': '#wkndOffs', 'args': ['num'] },
-    'public_holiday_offs':   { 'target': '#phOffs', 'args': ['num'] },
+    'weekend_offs':        { 'target': '#wkndOffs', 'args': ['num'] },
+    'public_holiday_offs': { 'target': '#phOffs',   'args': ['num'] },
+    'consecutive_rests':   { 'target': '#cnscOffs', 'args': ['num'] },
 }
 
 def conv_symbol(sym: clingo.Symbol, type: str):
@@ -384,15 +386,13 @@ def make_shift_table(atoms: list[clingo.Symbol]):
         right_df = pd.concat([right_df, sdf], axis=1)
         #print(right_df)
 
-    # # 連続休暇数を追加
-    # if 'num_consecutive_holidays' in statistics:
-    #     sdf = pd.DataFrame(statistics['num_consecutive_holidays'])
-    #     sdf = sdf.set_index('staff')
-    #     #print(sdf)
-    #     sdf.columns = pd.MultiIndex.from_product([['連続休暇数'], ['過去', '当月', '合計']])
-    #     #print(sdf)
-    #     df_shifts = pd.concat([df_shifts, sdf], axis=1)
-    #     #print(df_shifts)
+    # Add the number of consecutive rests if exists
+    if 'num_consecutive_rests' in model:
+        sdf = pd.DataFrame(model['num_consecutive_rests'])
+        sdf = sdf.set_index('No')
+        sdf.columns = pd.MultiIndex.from_product([['#cnscOffs'], list(sdf.columns)])
+        right_df = pd.concat([right_df, sdf], axis=1)
+        #print(right_df)
 
     # # 火曜NJ数を追加
     # if 'num_tue_nj_shifts' in statistics:
@@ -514,7 +514,7 @@ def make_reward_map(rewards):
             arg = cause.arguments[idx]
             args.append(conv_symbol(arg, type))
         target = cause_rule['target']
-        if target == '#wkndOffs' or target == '#phOffs':
+        if target in ['#wkndOffs', '#phOffs', '#cnscOffs']:
             add(rmap, args[0], (target, 'C'), r)
         else:
             raise ValueError(f'Unknown cause target: {target}')
