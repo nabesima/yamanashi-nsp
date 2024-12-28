@@ -53,4 +53,6 @@ shift(SIGN) :- shift(_, _, SIGN).
 night_work_shift("E";"SE";"N";"SN").
 non_work_shift(SIGN) :- rest_shift(SIGN).
 non_work_shift(SIGN) :- leave_shift(SIGN).
-
+manual_shift(SIGN) :- business_shift(SIGN).
+manual_shift(SIGN) :- leave_shift(SIGN).
+manual_shift(SIGN) :- na_shift(SIGN).

@@ -123,7 +123,7 @@ class ShiftTable:
         # ------------------------------------------------------------
         # Make the main table
         for no, row in self.main_df.iterrows():
-            style = Back.RED if self.has_penalty(no, 'index') else None
+            style = Fore.BLACK + Back.RED if self.has_penalty(no, 'index') else None
             self.cells[no] = {'index': Cell(str(no), style=style, right_border=True)}
             row = row.droplevel(["Month", "ADay", "Dweek"])
             for rd, s in row.items():
@@ -132,7 +132,7 @@ class ShiftTable:
                 if self.has_request(no, rd):
                     style = Fore.BLACK + Back.GREEN
                 if self.has_penalty(no, rd):
-                    style = Back.RED
+                    style = Fore.BLACK + Back.RED
                 self.cells[no][rd] = Cell(s, style=style, right_border=border)
 
         self.cells['BottomBorder'] = {'index': Border()}
@@ -158,7 +158,7 @@ class ShiftTable:
                 if self.has_reward(no, t):
                     style = Fore.BLACK + Back.CYAN
                 if self.has_penalty(no, t):
-                    style = Back.RED
+                    style = Fore.BLACK + Back.RED
                 self.cells[no][t] = Cell(str(n), style=style, right_border=border)
 
         # ------------------------------------------------------------
@@ -173,7 +173,7 @@ class ShiftTable:
                 border = True if rd == width - 1 else False
                 style = None
                 if self.has_penalty(idx, rd):
-                    style = Back.RED
+                    style = Fore.BLACK + Back.RED
                 self.cells[idx][rd] = Cell(str(n), style=style, right_border=border)
 
         max_width = sum(map(lambda e: e.width, self.cells['RDay'].values())) + len(self.cells['RDay'].values())
@@ -220,6 +220,8 @@ class ShiftTable:
                     date = args[2].number
                     p['Req'] = self.cells[staff1][date].text
                     p['Res'] = self.cells[staff2][date].text
+                elif c.match("adjacent_rest_days", 2):
+                    p['Req'] = p['Res'] = '-'
 
             penalties = self.penalties
             for r in self.rewards:
@@ -264,12 +266,17 @@ CAUSE_RULES = {
     'work_days_ub':   { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_lb': { 'target': 'staff', 'args': ['num'] },
     'weekly_rest_ub': { 'target': 'staff', 'args': ['num'] },
+    'pattern_lb':     { 'target': 'staff', 'args': ['num', 'str'] },
+    'pattern_ub':     { 'target': 'staff', 'args': ['num', 'str'] },
 
     'shift_lb': { 'target': 'shifts', 'args': ['num', 'str'] },
     'shift_ub': { 'target': 'shifts', 'args': ['num', 'str'] },
 
     'staff_lb': { 'target': 'staffs', 'args': ['str', 'str', 'num'] },
     'staff_ub': { 'target': 'staffs', 'args': ['str', 'str', 'num'] },
+
+    'point_lb': { 'target': 'points', 'args': ['str', 'str', 'num'] },
+    'point_ub': { 'target': 'points', 'args': ['str', 'str', 'num'] },
 
     'consecutive_work_days': { 'target': 'staff-day', 'args': ['num', 'num'] },
     'pos_request':           { 'target': 'staff-day', 'args': ['num', 'num'] },
@@ -278,6 +285,7 @@ CAUSE_RULES = {
     'next_shift':            { 'target': 'staff-day', 'args': ['num', 'num'] },
     'prev_shift':            { 'target': 'staff-day', 'args': ['num', 'num'] },
     'isolated_work_day':     { 'target': 'staff-day', 'args': ['num', 'num'] },
+    'adjacent_rest_days':    { 'target': 'staff-day', 'args': ['num', 'num'] },
 
     'recommended_night_pair': { 'target': 'staff-pair', 'args': ['num', 'num'] },
 
@@ -455,10 +463,12 @@ def make_shift_table(atoms: list[clingo.Symbol]):
     # ------------------------------------------------------------
     # Make the request mapping for the explanation of penalties
     request_map = recursive_defaultdict()
-    for r in model['pos_request']:
-        request_map[r["No"]][r["Date"]]['pos'].setdefault("Shift", []).append(r["Shift"])
-    for r in model['neg_request']:
-        request_map[r["No"]][r["Date"]]['neg'].setdefault("Shift", []).append(r["Shift"])
+    if 'pos_request' in model:
+        for r in model['pos_request']:
+            request_map[r["No"]][r["Date"]]['pos'].setdefault("Shift", []).append(r["Shift"])
+    if 'neg_request' in model:
+        for r in model['neg_request']:
+            request_map[r["No"]][r["Date"]]['neg'].setdefault("Shift", []).append(r["Shift"])
 
     title = None
     if 'header' in model:
@@ -490,6 +500,8 @@ def make_penalty_map(penalties):
             add(pmap, args[0], ('#shifts', args[1]), p)
         elif cause_rule['target'] == 'staffs':
             add(pmap, (args[0], args[1], '#S'), args[2], p)
+        elif cause_rule['target'] == 'points':
+            add(pmap, (args[0], args[1], '#P'), args[2], p)
         elif cause_rule['target'] == 'staff-day':
             add(pmap, args[0], args[1], p)
         elif cause_rule['target'] == 'staff-pair':

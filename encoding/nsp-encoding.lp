@@ -143,7 +143,7 @@ violation(hard, neg_request(N, D)) :-
     1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
 
 % for next month, positive requested shifts must be assigned
-1 { ext_assigned(N, D, S): pos_request(N, D, S) } 1 :-
+1 { ext_assigned(N, D, S) : pos_request(N, D, S) } 1 :-
      pos_request(N, D), next_date(D).
 
 %----------------------------------------------------------------------
@@ -239,8 +239,90 @@ isolated_work_day(N, D+1) :-
     work_day(N, D+1),
     rest_day(N, D+0).
 
-violation(soft, isolated_work_day(N, D)) :-
+% Penalty for isolated workdays
+        violation(soft, isolated_work_day(N, D)) :-
     isolated_work_day(N, D).
+
+%----------------------------------------------------------------------
+% Constraints on requested leaves
+%----------------------------------------------------------------------
+
+requested_leave_days(N, BD, ED) :-
+    staff(N),
+    BD <= ED,
+    base_date(BD),
+    base_date(ED),
+    date(((BD-1);(ED+1))), % Either the start or end of the consecutive leave must fall within this month.
+    not pos_request(N, BD-1),
+    leave_request(N, D) : D = BD..ED ;
+    not pos_request(N, ED+1).
+
+% Max consecutive leave days that can have weekly rest assigned either at the beginning or the end.
+adjacent_rest_days_lim(N) :- dep_adjacent_rest_days_lim(N).
+adjacent_rest_days_lim(7) :- not dep_adjacent_rest_days_lim(_).
+
+% Penalty if weekly rest is not assigned before or after consecutive leave
+violation(soft, adjacent_rest_days(N, BD)) :-
+    requested_leave_days(N, BD, ED),
+    adjacent_rest_days_lim(LIM),
+    ED - BD + 1 < LIM,
+    work_day(N, BD-1),
+    work_day(N, ED+1).
+
+% penalty(adjacent_holiday(N, FBD, FED), table(N, BD), PNL, PRI) :-
+%     requested_holidays_period(N, BD, ED),
+%     _adjacent_holiday_limit(LEN),
+%     ED - BD + 1 < LEN,
+%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
+%     ext_assigned(N, BD-1), ext_assigned(N, ED+1),
+%     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
+
+% :- hard_adjacent_holiday(N), not soft_all,
+%     requested_holidays_period(N, BD, ED),
+%     _adjacent_holiday_limit(LEN),
+%     ED - BD + 1 < LEN,
+%     ext_assigned(N, BD-1), ext_assigned(N, ED+1).
+
+% % ソフト休暇の出現期間
+% requested_holidays_period(N, BD, ED) :-
+%     staff(N), date(BD), date(ED), BD <= ED,
+%     not staff_request(N, ((BD-1);(ED+1))),
+%     %not staff_valid_holiday_request(N, BD-1),
+%     %staff_valid_holiday_request(N, D) : D = BD..ED;  % 前処理（探索なし）なので基礎化しても大きく爆発しない
+%     %not staff_valid_holiday_request(N, ED+1),
+%     %1 { ext_assigned(N, D, S) : D = BD..ED, soft_holiday_shift(S) }.  % 少なくとも１つはソフト休暇（年，健）が含まれること（週休の希望の前後に週休は割り当てない）
+%     not staff_soft_holiday_request(N, BD-1),
+%     staff_soft_holiday_request(N, D) : D = BD..ED;  % 前処理（探索なし）なので基礎化しても大きく爆発しない
+%     not staff_soft_holiday_request(N, ED+1).
+
+
+% % 希望休暇の前後に週休を割り当てる基準となる連続休暇数（これ未満の連続休暇の前後に週休を割り当てる）
+% def_adjacent_holiday_limit(28).
+% _adjacent_holiday_limit(X) :- adjacent_holiday_limit(X).
+% _adjacent_holiday_limit(X) :- not adjacent_holiday_limit(_), def_adjacent_holiday_limit(X).
+
+% % ソフト休暇の前後のいずれかには週休を入れる
+% :- hard_adjacent_holiday(N), not soft_all,
+%     requested_holidays_period(N, BD, ED),
+%     _adjacent_holiday_limit(LEN),
+%     ED - BD + 1 < LEN,
+%     ext_assigned(N, BD-1), ext_assigned(N, ED+1).
+
+% penalty(adjacent_holiday(N, FBD, FED), table(N, BD), PNL, PRI) :-
+%     requested_holidays_period(N, BD, ED),
+%     _adjacent_holiday_limit(LEN),
+%     ED - BD + 1 < LEN,
+%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
+%     ext_assigned(N, BD-1), ext_assigned(N, ED+1),
+%     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
+
+% penalty(adjacent_working_day(N, FBD, FED), table(N, BD), PNL, PRI) :-
+%     requested_holidays_period(N, BD, ED),
+%     _adjacent_holiday_limit(LEN),
+%     ED - BD + 1 >= LEN,
+%     date2fulldate(BD, FBD), date2fulldate(ED, FED),
+%     1 {regular_holiday_off(N, BD-1) ; regular_holiday_off(N, ED+1)},
+%     _penalty("adjacent_holiday", PNL), _priority("adjacent_holiday", PRI).
 
 %----------------------------------------------------------------------
 % Constraints related to rewards
@@ -304,9 +386,9 @@ achievement(consecutive_rests(N), PAST_MAX - PAST_OWN + 1) :-
 
 % Extends 'assigned/3' to 'ext_assigned/3'
 ext_assigned(N, D, S) :- assigned(N, D, S).
-ext_assigned(N, D, S) :- not assigned(N, D), fixed_request(N ,D), pos_request(N, D, S).
 ext_assigned(N, D, "WR") :- not assigned(N, D), weekly_rest_available_date(N, D).
 ext_assigned(N, D, "PH") :- not assigned(N, D), public_holiday_available_date(N, D).
+1 { ext_assigned(N, D, S) : manual_request(N, D, S) } 1 :- not assigned(N, D), manual_request(N, D).
 
 % work_day/2 represents working days not only for the current month
 % but also for the previous and next months.
@@ -371,6 +453,7 @@ cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(S, _).
 cause_type(recommended_night_pair(N1, N2)) :- recommended_night_pair(N1, N2, _).
 cause_type(forbidden_night_pair(N1, N2, D)) :- forbidden_night_pair(N1, N2), date(D).
 cause_type(isolated_work_day(N, D)) :- staff(N), date(D).
+cause_type(adjacent_rest_days(N, D)) :- staff(N), date(D).
 cause_type(weekend_offs(N)) :- staff(N).
 cause_type(public_holiday_offs(N)) :- staff(N).
 cause_type(consecutive_rests(N)) :- staff(N).

@@ -36,20 +36,30 @@ ext_assigned(N, D, S) :- staff(N), next_date(D), shift_data(N, D, S).
 % Requested shifts
 %----------------------------------------------------------------------
 
-pos_request(N, D, S) :- staff_pos_request(N, D, S).
+pos_request(N, D, S) :- staff_pos_request(N, D, S), staff(N).
 pos_request(N, D, S) :- staff_def_pos_request(N, D, S), not staff_request(N, D).
-neg_request(N, D, S) :- staff_neg_request(N, D, S).
+neg_request(N, D, S) :- staff_neg_request(N, D, S), staff(N).
 neg_request(N, D, S) :- staff_def_neg_request(N, D, S), not staff_request(N, D).
+
+% Suppresses warnings when there are no reqeusts
+staff_pos_request(dummy, dummy, dummy).
+staff_neg_request(dummy, dummy, dummy).
 
 % Abbreviations
 staff_request(N, D) :- staff_pos_request(N, D, _).
 staff_request(N, D) :- staff_neg_request(N, D, _).
 pos_request(N, D) :- pos_request(N, D, _).
 neg_request(N, D) :- neg_request(N, D, _).
-business_request(N, D) :- pos_request(N, D, S), business_shift(S).
-leave_request(N, D) :- pos_request(N, D, S), business_shift(S).
-na_request(N, D) :- pos_request(N, D, S), business_shift(S).
-fixed_request(N, D) :- business_request(N, D); leave_request(N, D); na_request(N, D).
+business_request(N, D, S) :- pos_request(N, D, S), business_shift(S).
+business_request(N, D) :- business_request(N, D, _).
+leave_request(N, D, S) :- pos_request(N, D, S), leave_shift(S).
+leave_request(N, D) :- leave_request(N, D, _).
+na_request(N, D, S) :- pos_request(N, D, S), na_shift(S).
+na_request(N, D) :- na_request(N, D, _).
+manual_request(N, D, S) :- business_request(N, D, S).
+manual_request(N, D, S) :- leave_request(N, D, S).
+manual_request(N, D, S) :- na_request(N, D, S).
+manual_request(N, D) :- manual_request(N, D, _).
 
 % Define current month's shifts (requested shifts) as pos_request/3
 pos_request(N, D, S) :- staff(N), date(D), shift_data(N, D, S).
