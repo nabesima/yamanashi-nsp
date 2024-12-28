@@ -277,6 +277,7 @@ CAUSE_RULES = {
     'forbidden_pattern':     { 'target': 'staff-day', 'args': ['num', 'num'] },
     'next_shift':            { 'target': 'staff-day', 'args': ['num', 'num'] },
     'prev_shift':            { 'target': 'staff-day', 'args': ['num', 'num'] },
+    'isolated_work_day':     { 'target': 'staff-day', 'args': ['num', 'num'] },
 
     'recommended_night_pair': { 'target': 'staff-pair', 'args': ['num', 'num'] },
 

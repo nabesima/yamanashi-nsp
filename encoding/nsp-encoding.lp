@@ -235,13 +235,12 @@ forbidden_night_pair(dummy, dummy).
 isolated_work_day(N, D+1) :-
     staff(N),
     date(D+2),
-    ext_assigned(N, D+2, S2),
-    ext_assigned(N, D+1, S1),
-    ext_assigned(N, D+0, S0).
+    rest_day(N, D+2),
+    work_day(N, D+1),
+    rest_day(N, D+0).
 
-% penalty(isolated_working_day(N, FD), table(N, D), PNL, PRI) :-
-%     isolated_working_day(N, D), date2fulldate(D, FD), not allow_isolated_working_day,
-%     _penalty("isolated_working_day", PNL), _priority("isolated_working_day", PRI).
+violation(soft, isolated_work_day(N, D)) :-
+    isolated_work_day(N, D).
 
 %----------------------------------------------------------------------
 % Constraints related to rewards
@@ -371,6 +370,7 @@ cause_type(next_shift(N, D, S)) :- staff(N), base_date(D), next_shift(S, _).
 cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(S, _).
 cause_type(recommended_night_pair(N1, N2)) :- recommended_night_pair(N1, N2, _).
 cause_type(forbidden_night_pair(N1, N2, D)) :- forbidden_night_pair(N1, N2), date(D).
+cause_type(isolated_work_day(N, D)) :- staff(N), date(D).
 cause_type(weekend_offs(N)) :- staff(N).
 cause_type(public_holiday_offs(N)) :- staff(N).
 cause_type(consecutive_rests(N)) :- staff(N).
