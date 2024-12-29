@@ -169,38 +169,91 @@ work_days_bounds(N, LB, UB) :-
 %----------------------------------------------------------------------
 
 % Staff bounds
+% - Either staff or point hard constraint must be satisfied if both exist; treat as an OR constraint
+
 %% Weekday
-staff_lb(hard_sp, NG, SG, D, V) :- weekday(D), staff_dweek_hard_lb(NG, SG, "Weekday", V).
-staff_ub(hard_sp, NG, SG, D, V) :- weekday(D), staff_dweek_hard_ub(NG, SG, "Weekday", V).
-staff_lb(soft, NG, SG, D, V) :- weekday(D), staff_dweek_soft_lb(NG, SG, "Weekday", V).
-staff_ub(soft, NG, SG, D, V) :- weekday(D), staff_dweek_soft_ub(NG, SG, "Weekday", V).
+staff_lb(hard_sp, NG, SG, D, V) :-
+    weekday(D), staff_dweek_hard_lb(NG, SG, "Weekday", V), point_dweek_hard_lb(NG, SG, "Weekday", _).
+staff_ub(hard_sp, NG, SG, D, V) :-
+    weekday(D), staff_dweek_hard_ub(NG, SG, "Weekday", V), point_dweek_hard_ub(NG, SG, "Weekday", _).
+staff_lb(hard, NG, SG, D, V) :-
+    weekday(D), staff_dweek_hard_lb(NG, SG, "Weekday", V), not point_dweek_hard_lb(NG, SG, "Weekday", _).
+staff_ub(hard, NG, SG, D, V) :-
+    weekday(D), staff_dweek_hard_ub(NG, SG, "Weekday", V), not point_dweek_hard_ub(NG, SG, "Weekday", _).
+staff_lb(soft, NG, SG, D, V) :-
+    weekday(D), staff_dweek_soft_lb(NG, SG, "Weekday", V).
+staff_ub(soft, NG, SG, D, V) :-
+    weekday(D), staff_dweek_soft_ub(NG, SG, "Weekday", V).
 %% Weekend
-staff_lb(hard_sp, NG, SG, D, V) :- weekend(D), staff_dweek_hard_lb(NG, SG, "Weekend", V).
-staff_ub(hard_sp, NG, SG, D, V) :- weekend(D), staff_dweek_hard_ub(NG, SG, "Weekend", V).
-staff_lb(soft, NG, SG, D, V) :- weekend(D), staff_dweek_soft_lb(NG, SG, "Weekend", V).
-staff_ub(soft, NG, SG, D, V) :- weekend(D), staff_dweek_soft_ub(NG, SG, "Weekend", V).
+staff_lb(hard_sp, NG, SG, D, V) :-
+    weekend(D), staff_dweek_hard_lb(NG, SG, "Weekend", V), point_dweek_hard_lb(NG, SG, "Weekend", _).
+staff_ub(hard_sp, NG, SG, D, V) :-
+    weekend(D), staff_dweek_hard_ub(NG, SG, "Weekend", V), point_dweek_hard_ub(NG, SG, "Weekend", _).
+staff_lb(hard, NG, SG, D, V) :-
+    weekend(D), staff_dweek_hard_lb(NG, SG, "Weekend", V), not point_dweek_hard_lb(NG, SG, "Weekend", _).
+staff_ub(hard, NG, SG, D, V) :-
+    weekend(D), staff_dweek_hard_ub(NG, SG, "Weekend", V), not point_dweek_hard_ub(NG, SG, "Weekend", _).
+staff_lb(soft, NG, SG, D, V) :-
+    weekend(D), staff_dweek_soft_lb(NG, SG, "Weekend", V).
+staff_ub(soft, NG, SG, D, V) :-
+    weekend(D), staff_dweek_soft_ub(NG, SG, "Weekend", V).
+
 %% Holidays
-staff_lb(hard_sp, NG, SG, D, V) :- date(D), public_holiday(D), staff_dweek_hard_lb(NG, SG, "Holiday", V).
-staff_ub(hard_sp, NG, SG, D, V) :- date(D), public_holiday(D), staff_dweek_hard_ub(NG, SG, "Holiday", V).
-staff_lb(soft, NG, SG, D, V) :- date(D), public_holiday(D), staff_dweek_soft_lb(NG, SG, "Holiday", V).
-staff_ub(soft, NG, SG, D, V) :- date(D), public_holiday(D), staff_dweek_soft_ub(NG, SG, "Holiday", V).
+staff_lb(hard_sp, NG, SG, D, V) :-
+    date(D), public_holiday(D), staff_dweek_hard_lb(NG, SG, "Holiday", V), point_dweek_hard_lb(NG, SG, "Holiday", _).
+staff_ub(hard_sp, NG, SG, D, V) :-
+    date(D), public_holiday(D), staff_dweek_hard_ub(NG, SG, "Holiday", V), point_dweek_hard_ub(NG, SG, "Holiday", _).
+staff_lb(hard, NG, SG, D, V) :-
+    date(D), public_holiday(D), staff_dweek_hard_lb(NG, SG, "Holiday", V), not point_dweek_hard_lb(NG, SG, "Holiday", _).
+staff_ub(hard, NG, SG, D, V) :-
+    date(D), public_holiday(D), staff_dweek_hard_ub(NG, SG, "Holiday", V), not point_dweek_hard_ub(NG, SG, "Holiday", _).
+staff_lb(soft, NG, SG, D, V) :-
+    date(D), public_holiday(D), staff_dweek_soft_lb(NG, SG, "Holiday", V).
+staff_ub(soft, NG, SG, D, V) :-
+    date(D), public_holiday(D), staff_dweek_soft_ub(NG, SG, "Holiday", V).
 
 % Point bounds
+% - Either staff or point hard constraint must be satisfied if both exist; treat as an OR constraint
+
 %% Weekday
-point_lb(hard_sp, NG, SG, D, V) :- weekday(D), point_dweek_hard_lb(NG, SG, "Weekday", V).
-point_ub(hard_sp, NG, SG, D, V) :- weekday(D), point_dweek_hard_ub(NG, SG, "Weekday", V).
-point_lb(soft, NG, SG, D, V) :- weekday(D), point_dweek_soft_lb(NG, SG, "Weekday", V).
-point_ub(soft, NG, SG, D, V) :- weekday(D), point_dweek_soft_ub(NG, SG, "Weekday", V).
+point_lb(hard_sp, NG, SG, D, V) :-
+    weekday(D), point_dweek_hard_lb(NG, SG, "Weekday", V), staff_dweek_hard_lb(NG, SG, "Weekday", _).
+point_ub(hard_sp, NG, SG, D, V) :-
+    weekday(D), point_dweek_hard_ub(NG, SG, "Weekday", V), staff_dweek_hard_ub(NG, SG, "Weekday", _).
+point_lb(hard, NG, SG, D, V) :-
+    weekday(D), point_dweek_hard_lb(NG, SG, "Weekday", V), not staff_dweek_hard_lb(NG, SG, "Weekday", _).
+point_ub(hard, NG, SG, D, V) :-
+    weekday(D), point_dweek_hard_ub(NG, SG, "Weekday", V), not staff_dweek_hard_ub(NG, SG, "Weekday", _).
+point_lb(soft, NG, SG, D, V) :-
+    weekday(D), point_dweek_soft_lb(NG, SG, "Weekday", V).
+point_ub(soft, NG, SG, D, V) :-
+    weekday(D), point_dweek_soft_ub(NG, SG, "Weekday", V).
 %% Weekend
-point_lb(hard_sp, NG, SG, D, V) :- weekend(D), point_dweek_hard_lb(NG, SG, "Weekend", V).
-point_ub(hard_sp, NG, SG, D, V) :- weekend(D), point_dweek_hard_ub(NG, SG, "Weekend", V).
-point_lb(soft, NG, SG, D, V) :- weekend(D), point_dweek_soft_lb(NG, SG, "Weekend", V).
-point_ub(soft, NG, SG, D, V) :- weekend(D), point_dweek_soft_ub(NG, SG, "Weekend", V).
+point_lb(hard_sp, NG, SG, D, V) :-
+    weekend(D), point_dweek_hard_lb(NG, SG, "Weekend", V), staff_dweek_hard_lb(NG, SG, "Weekend", _).
+point_ub(hard_sp, NG, SG, D, V) :-
+    weekend(D), point_dweek_hard_ub(NG, SG, "Weekend", V), staff_dweek_hard_ub(NG, SG, "Weekend", _).
+point_lb(hard, NG, SG, D, V) :-
+    weekend(D), point_dweek_hard_lb(NG, SG, "Weekend", V), not staff_dweek_hard_lb(NG, SG, "Weekend", _).
+point_ub(hard, NG, SG, D, V) :-
+    weekend(D), point_dweek_hard_ub(NG, SG, "Weekend", V), not staff_dweek_hard_ub(NG, SG, "Weekend", _).
+point_lb(soft, NG, SG, D, V) :-
+    weekend(D), point_dweek_soft_lb(NG, SG, "Weekend", V).
+point_ub(soft, NG, SG, D, V) :-
+    weekend(D), point_dweek_soft_ub(NG, SG, "Weekend", V).
 %% Holidays
-point_lb(hard_sp, NG, SG, D, V) :- date(D), public_holiday(D), point_dweek_hard_lb(NG, SG, "Holiday", V).
-point_ub(hard_sp, NG, SG, D, V) :- date(D), public_holiday(D), point_dweek_hard_ub(NG, SG, "Holiday", V).
-point_lb(soft, NG, SG, D, V) :- date(D), public_holiday(D), point_dweek_soft_lb(NG, SG, "Holiday", V).
-point_ub(soft, NG, SG, D, V) :- date(D), public_holiday(D), point_dweek_soft_ub(NG, SG, "Holiday", V).
+point_lb(hard_sp, NG, SG, D, V) :-
+    date(D), public_holiday(D), point_dweek_hard_lb(NG, SG, "Holiday", V), staff_dweek_hard_lb(NG, SG, "Holiday", _).
+point_ub(hard_sp, NG, SG, D, V) :-
+    date(D), public_holiday(D), point_dweek_hard_ub(NG, SG, "Holiday", V), staff_dweek_hard_ub(NG, SG, "Holiday", _).
+point_lb(hard, NG, SG, D, V) :-
+    date(D), public_holiday(D), point_dweek_hard_lb(NG, SG, "Holiday", V), not staff_dweek_hard_lb(NG, SG, "Holiday", _).
+point_ub(hard, NG, SG, D, V) :-
+    date(D), public_holiday(D), point_dweek_hard_ub(NG, SG, "Holiday", V), not staff_dweek_hard_ub(NG, SG, "Holiday", _).
+point_lb(soft, NG, SG, D, V) :-
+    date(D), public_holiday(D), point_dweek_soft_lb(NG, SG, "Holiday", V).
+point_ub(soft, NG, SG, D, V) :-
+    date(D), public_holiday(D), point_dweek_soft_ub(NG, SG, "Holiday", V).
 
 % Suppresses warnings when there are no point bound definition
 point_dweek_hard_lb(dummy, dummy, dummy, dummy).

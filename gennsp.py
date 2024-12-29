@@ -235,20 +235,42 @@ class ForbiddenPattern:
         print(f'forbidden_pattern("{self.pattern.name}").', file=out)
 
 @dataclass
+class ConsecWorkDays:
+    btype: str
+    val: int
+
+    def __post_init__(self):
+        if self.btype != "soft" and self.btype != "hard":
+            raise ValueError(f'Unexpected staff bound type: {self.btype}')
+
+    def to_asp(self, out):
+        print(f'consecutive_work_ub({self.btype}, {self.val}).', file=out)
+
+@dataclass
 class PrevShift:
+    btype: str
     base: str
     prev: str
 
+    def __post_init__(self):
+        if self.btype != "soft" and self.btype != "hard":
+            raise ValueError(f'Unexpected staff bound type: {self.btype}')
+
     def to_asp(self, out):
-        print(f'prev_shift("{self.base}", "{self.prev}").', file=out)
+        print(f'prev_shift({self.btype}, "{self.base}", "{self.prev}").', file=out)
 
 @dataclass
 class NextShift:
+    btype: str
     base: str
     next: str
 
+    def __post_init__(self):
+        if self.btype != "soft" and self.btype != "hard":
+            raise ValueError(f'Unexpected staff bound type: {self.btype}')
+
     def to_asp(self, out):
-        print(f'next_shift("{self.base}", "{self.next}").', file=out)
+        print(f'next_shift({self.btype}, "{self.base}", "{self.next}").', file=out)
 
 @dataclass
 class RecommendedPair:
@@ -278,7 +300,7 @@ class NSP:
         self.staff_bounds = []
         self.horizontal_constraint_types = []
         self.vertical_constraint_types = []
-        self.consecutive_work_days = None
+        self.consecutive_work_days = []
         self.staff_requests = []
         self.staff_def_requests = []
         self.shift_patterns = []
@@ -372,13 +394,13 @@ class NSP:
         if p not in self.forbidden_patterns:
             self.forbidden_patterns.append(ForbiddenPattern(p))
 
-    def add_prev_shifts(self, base:str, prevs: list[str]):
+    def add_prev_shifts(self, btype: str, base: str, prevs: list[str]):
         for prev in prevs:
-            self.prev_shifts.append(PrevShift(base, prev))
+            self.prev_shifts.append(PrevShift(btype, base, prev))
 
-    def add_next_shifts(self, base:str, nexts: list[str]):
+    def add_next_shifts(self, btype: str, base:str, nexts: list[str]):
         for next in nexts:
-            self.next_shifts.append(NextShift(base, next))
+            self.next_shifts.append(NextShift(btype, base, next))
 
     def add_recommended_pair(self, mentor: Staff, novice: Staff, lb: int):
         self.recommended_pairs.append(RecommendedPair(mentor, novice, lb))
@@ -391,7 +413,7 @@ class NSP:
         self.set_default_staffs(num_staffs)
         self.set_default_shifts_constraint()
         self.set_default_staffs_constraints()
-        self.consecutive_work_days = consec_work_days
+        self.set_default_consec_work_days(consec_work_days)
         self.set_default_staff_requests(staff_req, def_req_staffs)
         self.set_default_pattern_bounds()
         self.set_default_forbbiden_patterns()
@@ -478,6 +500,9 @@ class NSP:
                                     continue
                                 self.add_staff_bound(btype, staff_group, shift_group, dweek, num)
 
+    def set_default_consec_work_days(self, val):
+        self.consecutive_work_days.append(ConsecWorkDays('hard', val))
+
     def set_default_staff_requests(self, ratio, def_req_staffs):
         req_shifts = ["D", "SE", "SN", "WR", "BT", "TR", "AL", "BL"]
         num_cells = len(self.staffs) * self.dates.width
@@ -520,16 +545,16 @@ class NSP:
 
     def set_default_prev_next_shifts(self):
         # SE -> [SN] -> SE, WR
-        self.add_prev_shifts("SN", ["SE"])
-        self.add_next_shifts("SN", ["SE", "WR"])
+        self.add_prev_shifts("hard", "SN", ["SE"])
+        self.add_next_shifts("hard", "SN", ["SE", "WR"])
         # LD, LM -> [SE] -> SN
-        self.add_prev_shifts("SE", ["LD", "LM"])
-        self.add_next_shifts("SE", ["SN"])
+        self.add_prev_shifts("hard", "SE", ["LD", "LM"])
+        self.add_next_shifts("hard", "SE", ["SN"])
         # [E] -> N
-        self.add_next_shifts("E", ["N"])
+        self.add_next_shifts("hard", "E", ["N"])
         # E -> [N] -> WR
-        self.add_prev_shifts("N", ["E"])
-        self.add_next_shifts("N", ["WR"])
+        self.add_prev_shifts("hard", "N", ["E"])
+        self.add_next_shifts("hard", "N", ["WR"])
 
     def set_default_recommended_pairs(self, num_pairs):
         mentors = self.staff_groups["Expert"].members + self.staff_groups["Medium"].members
@@ -568,9 +593,9 @@ class NSP:
         for v in self.vertical_constraint_types:
             v.to_asp(out)
         print("% Shift related constraints ----------------------", file=out)
-        if self.consecutive_work_days:
-            print("% Maximum consecutive working days", file=out)
-            print(f"consecutive_work_ub({self.consecutive_work_days}).", file=out)
+        print("% Maximum consecutive working days", file=out)
+        for c in self.consecutive_work_days:
+            c.to_asp(out)
         print("% Previous shifts", file=out)
         for p in self.prev_shifts:
             p.to_asp(out)

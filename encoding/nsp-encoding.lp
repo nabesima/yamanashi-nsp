@@ -61,7 +61,6 @@ violation(T, staff_ub(NG, SG, D), UB, X) :-
     UB < X.
 
 % Allocates staffs who totally have LB or more points
-% sat_staff_point_hard_lb(G, SS, D) :- point_hard_lb(G, SS, D, LB), LB <= #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(G, N), shift_group(SS, S) }.
 violation(T, point_lb(NG, SG, D), LB, X) :-
     point_lb(T, NG, SG, D, LB),
     X = #sum{ P, N : point(N, P), assigned(N, D, S), staff_group(NG, N), shift_group(SG, S) },
@@ -74,7 +73,19 @@ violation(T, point_ub(NG, SG, D), UB, X) :-
     UB < X.
 
 % Either hard bound of the number of staffs or the total of points should be satisfied
-:- violation(hard_sp, staff_lb(NG, SG, D), _, _), violation(hard_sp, point_lb(NG, SG, D), _, _).
+violation(hard, staff_lb(NG, SG, D), LB, X) :-
+    violation(hard_sp, staff_lb(NG, SG, D), LB, X),
+    violation(hard_sp, point_lb(NG, SG, D), _, _).
+violation(hard, point_lb(NG, SG, D), LB, X) :-
+    violation(hard_sp, staff_lb(NG, SG, D), _, _),
+    violation(hard_sp, point_lb(NG, SG, D), LB, X).
+
+violation(hard, staff_ub(NG, SG, D), UB, X) :-
+    violation(hard_sp, staff_ub(NG, SG, D), UB, X),
+    violation(hard_sp, point_ub(NG, SG, D), _, _).
+violation(hard, point_ub(NG, SG, D), UB, X) :-
+    violation(hard_sp, staff_ub(NG, SG, D), _, _),
+    violation(hard_sp, point_ub(NG, SG, D), UB, X).
 
 %----------------------------------------------------------------------
 % Horizontal constraints
@@ -105,28 +116,28 @@ violation(hard, eq_shifts(N)) :-
 % Enumerate full consecutive work periods for each nurse
 % The last day of the consecutive work period must be after the previous month's end.
 % (this is to avoid consecutive work violations in the manual shift table for the previous month).
-full_work_period(N, BD, ED) :-
+full_work_period(UB, N, BD, ED) :-
+    consecutive_work_ub(_, UB),
     staff(N),
-    consecutive_work_ub(UB),
     base_date(BD), ED=BD+UB-1, base_date(ED), -1 <= ED,
     work_day(N, D) : D = BD..ED.
 
 % Each nurse must not exceed the full consecutive working days.
-violation(hard, consecutive_work_days(N, BD), UB, UB+1) :-
-    full_work_period(N, BD, ED),
-    work_day(N, ED+1),
-    consecutive_work_ub(UB).
+violation(T, consecutive_work_days(N, BD), UB, UB+1) :-
+    consecutive_work_ub(T, UB),
+    full_work_period(UB, N, BD, ED),
+    work_day(N, ED+1).
 
 % A shift requiring next-day work is not assigned on the last day of a full consecutive period.
-violation(hard, consecutive_work_days(N, BD), UB, UB+1) :-
-    full_work_period(N, BD, ED),
+violation(T, consecutive_work_days(N, BD), UB, UB+1) :-
+    consecutive_work_ub(T, UB),
+    full_work_period(UB, N, BD, ED),
     ext_assigned(N, ED, S),
-    has_next_work_day(S),
-    consecutive_work_ub(UB).
+    has_next_work_day(S).
 
 has_next_work_day(S) :-
-    next_shift(S, _),
-    work_shift(NS) : next_shift(S, NS).
+    next_shift(hard, S, _),
+    work_shift(NS) : next_shift(hard, S, NS).
 
 %----------------------------------------------------------------------
 % Constraints on requested shifts
@@ -187,24 +198,28 @@ violation(hard, forbidden_pattern(N, BD, PID)) :-
 % Constraints on next shifts
 %----------------------------------------------------------------------
 
-violation(hard, next_shift(N, D, S)) :-
+% Assuming that next_shift(hard, S, _) and next_shift(soft, S, _) are mutually exclusive
+% and cannot both be defined for the same shift S
+violation(T, next_shift(N, D, S)) :-
     ext_assigned(N, D, S),
-    next_shift(S, _),
+    next_shift(T, S, _),
     first_date(FD),
     last_date(LD),
     FD - 1 <= D, D <= LD,
-    not 1 { ext_assigned(N, D+1, NS) : next_shift(S, NS), not non_work_shift(NS) ;
-            ext_assigned(N, D+1, NS) : next_shift(S, "WR"), non_work_shift(NS);
+    not 1 { ext_assigned(N, D+1, NS) : next_shift(T, S, NS), not non_work_shift(NS) ;
+            ext_assigned(N, D+1, NS) : next_shift(T, S, "WR"), non_work_shift(NS);
             not ext_assigned(N, D+1, _) : last_date(D) } 1.  % If nurse N has no assignment on D+1, any next shift can be assigned.
 
+% Assuming that prev_shift(hard, S, _) and prev_shift(soft, S, _) are mutually exclusive
+% and cannot both be defined for the same shift S
 violation(hard, prev_shift(N, D, S)) :-
     ext_assigned(N, D, S),
-    prev_shift(S, _),
+    prev_shift(T, S, _),
     first_date(FD),
     last_date(LD),
     FD <= D, D <= LD + 1,
-    not 1 { ext_assigned(N, D-1, PS) : prev_shift(S, PS), not non_work_shift(PS) ;
-            ext_assigned(N, D-1, PS) : prev_shift(S, "WR"), non_work_shift(PS) ;
+    not 1 { ext_assigned(N, D-1, PS) : prev_shift(T, S, PS), not non_work_shift(PS) ;
+            ext_assigned(N, D-1, PS) : prev_shift(T, S, "WR"), non_work_shift(PS) ;
             not ext_assigned(N, D-1, _) : first_date(D) } 1.  % If nurse N has no assignment on D-1, any previous shift can be assigned.
 
 %----------------------------------------------------------------------
@@ -395,8 +410,8 @@ cause_type(neg_request(N, D)) :- neg_request(N, D).
 cause_type(pattern_lb(N, PID)) :- staff(N), pattern_lb(_, PID, _).
 cause_type(pattern_ub(N, PID)) :- staff(N), pattern_ub(_, PID, _).
 cause_type(forbidden_pattern(N, D, PID)) :- staff(N), base_date(D), forbidden_pattern(PID).
-cause_type(next_shift(N, D, S)) :- staff(N), base_date(D), next_shift(S, _).
-cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(S, _).
+cause_type(next_shift(N, D, S)) :- staff(N), base_date(D), next_shift(_, S, _).
+cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(_, S, _).
 cause_type(recommended_night_pair(N1, N2)) :- recommended_night_pair(N1, N2, _).
 cause_type(forbidden_night_pair(N1, N2, D)) :- forbidden_night_pair(N1, N2), date(D).
 cause_type(isolated_work_day(N, D)) :- staff(N), date(D).
@@ -409,14 +424,15 @@ cause_type(consecutive_rests(N)) :- staff(N).
 % Priority of penalty and reward
 %----------------------------------------------------------------------
 % if there is no department-specific priority, use the defualt priority
+%% for violations
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
-priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _).
 priority(soft, C, P) :- dep_priority(C, P).
+priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _).
+% Assign priorities to relaxed hard constraints based on soft constraint priorities
+priority(hard, C, P) :- cause_type(C), dep_priority(C, Q), P = 10 + Q - 1.
+%% for achivements
 priority(C, 1) :- cause_type(C), not dep_priority(C, _).
 priority(C, P) :- dep_priority(C, P).
-
-% test
-dep_priority(C, 2) :- cause_type(C), C = (staff_lb(_,_,_);staff_ub(_,_,_);point_lb(_,_,_);point_ub(_,_,_)).
 
 %----------------------------------------------------------------------
 % Objective functions

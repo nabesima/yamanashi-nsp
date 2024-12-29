@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import fcntl
 import os
+import re
 import sys
 import time
 import clingo
@@ -555,8 +556,10 @@ def read_model(file):
         if last_index == -1 or len(lines) <= last_index + 1:
             print(f"Error: file '{file}' contains no model.")
             return
-        facts = (lines[last_index+1] + " ").split(") ")
-        facts = [fact + ")" for fact in facts if fact]
+
+        # replace spaces inside double quotes with a underscore (is there a better way?)
+        facts = re.sub(r'"[^"]*"', lambda m: m.group(0).replace(' ', '_'), lines[last_index+1])
+        facts = facts.split(" ")
         header = lines[last_index]
         if last_index + 2 < len(lines) and lines[last_index+2].startswith("Optimization:"):
             header += ", " + lines[last_index+2]
