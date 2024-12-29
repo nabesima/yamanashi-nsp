@@ -212,6 +212,12 @@ staff_lb(soft, NG, SG, D, V) :-
 staff_ub(soft, NG, SG, D, V) :-
     date(D), public_holiday(D), staff_dweek_soft_ub(NG, SG, "Holiday", V).
 
+% Suppresses warnings when there are no staff bound definition
+staff_dweek_hard_lb(dummy, dummy, dummy, dummy).
+staff_dweek_hard_ub(dummy, dummy, dummy, dummy).
+staff_dweek_soft_lb(dummy, dummy, dummy, dummy).
+staff_dweek_soft_ub(dummy, dummy, dummy, dummy).
+
 % Point bounds
 % - Either staff or point hard constraint must be satisfied if both exist; treat as an OR constraint
 

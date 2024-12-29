@@ -221,7 +221,7 @@ class ShiftTable:
                     date = args[2].number
                     p['Req'] = self.cells[staff1][date].text
                     p['Res'] = self.cells[staff2][date].text
-                elif c.match("adjacent_rest_days", 2):
+                elif c.match("adjacent_rest_days", 2) or c.match("eq_shifts", 1):
                     p['Req'] = p['Res'] = '-'
 
             penalties = self.penalties
@@ -260,16 +260,18 @@ ATOM_RULES = {
     'num_weekend_offs': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
     'num_public_holiday_offs': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
     'num_consecutive_rests': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
+    'num_tue_shifts': [('No', 'num'), ('P', 'num'), ('C', 'num'), ('T', 'num')],
 }
 
-CAUSE_RULES = {
-    'work_days_lb':   { 'target': 'staff', 'args': ['num'] },
-    'work_days_ub':   { 'target': 'staff', 'args': ['num'] },
-    'weekly_rest_lb': { 'target': 'staff', 'args': ['num'] },
-    'weekly_rest_ub': { 'target': 'staff', 'args': ['num'] },
-    'eq_shifts':      { 'target': 'staff', 'args': ['num'] },
-    'pattern_lb':     { 'target': 'staff', 'args': ['num', 'str'] },
-    'pattern_ub':     { 'target': 'staff', 'args': ['num', 'str'] },
+PENALTY_CAUSE_RULES = {
+    'work_days_lb':    { 'target': 'staff', 'args': ['num'] },
+    'work_days_ub':    { 'target': 'staff', 'args': ['num'] },
+    'weekly_rest_lb':  { 'target': 'staff', 'args': ['num'] },
+    'weekly_rest_ub':  { 'target': 'staff', 'args': ['num'] },
+    'eq_shifts':       { 'target': 'staff', 'args': ['num'] },
+    'pattern_lb':      { 'target': 'staff', 'args': ['num', 'str'] },
+    'pattern_ub':      { 'target': 'staff', 'args': ['num', 'str'] },
+    'tue_shifts_ub':   { 'target': 'staff', 'args': ['num'] },
 
     'shift_lb': { 'target': 'shifts', 'args': ['num', 'str'] },
     'shift_ub': { 'target': 'shifts', 'args': ['num', 'str'] },
@@ -288,14 +290,19 @@ CAUSE_RULES = {
     'prev_shift':            { 'target': 'staff-day', 'args': ['num', 'num'] },
     'isolated_work_day':     { 'target': 'staff-day', 'args': ['num', 'num'] },
     'adjacent_rest_days':    { 'target': 'staff-day', 'args': ['num', 'num'] },
+    'se_short_interval':     { 'target': 'staff-day', 'args': ['num', 'num'] },
 
     'recommended_night_pair': { 'target': 'staff-pair', 'args': ['num', 'num'] },
+    'weekend_pair_ub':        { 'target': 'staff-pair', 'args': ['num', 'num'] },
 
     'forbidden_night_pair':   { 'target': 'staff-pair-day', 'args': ['num', 'num', 'num'] },
+}
 
+REWARD_CAUSE_RULES = {
     'weekend_offs':        { 'target': '#wkndOffs', 'args': ['num'] },
     'public_holiday_offs': { 'target': '#phOffs',   'args': ['num'] },
     'consecutive_rests':   { 'target': '#cnscOffs', 'args': ['num'] },
+    'tue_shifts':          { 'target': '#tueShfts', 'args': ['num'] },
 }
 
 def conv_symbol(sym: clingo.Symbol, type: str):
@@ -405,14 +412,13 @@ def make_shift_table(atoms: list[clingo.Symbol]):
         right_df = pd.concat([right_df, sdf], axis=1)
         #print(right_df)
 
-    # # 火曜NJ数を追加
-    # if 'num_tue_nj_shifts' in statistics:
-    #     sdf = pd.DataFrame(statistics['num_tue_nj_shifts'])
-    #     sdf = sdf.set_index('staff')
-    #     sdf.columns = pd.MultiIndex.from_product([['火曜NJ数'], ['過去', '当月', '合計']])
-    #     #print(sdf)
-    #     df_shifts = pd.concat([df_shifts, sdf], axis=1)
-    #     #print(df_shifts)
+    # Add the number of Tuesday LD and SE shift assignments if exists
+    if 'num_tue_shifts' in model:
+        sdf = pd.DataFrame(model['num_tue_shifts'])
+        sdf = sdf.set_index('No')
+        sdf.columns = pd.MultiIndex.from_product([['#tueShfts'], list(sdf.columns)])
+        right_df = pd.concat([right_df, sdf], axis=1)
+        #print(right_df)
 
     # ------------------------------------------------------------
     # Make the bottom table to display the number of assigned staffs (vertical)
@@ -489,9 +495,9 @@ def make_penalty_map(penalties):
     pmap = {}
     for p in penalties:
         cause = p['Cause']
-        if cause.name not in CAUSE_RULES:
+        if cause.name not in PENALTY_CAUSE_RULES:
             raise ValueError(f'Unknown penalty cause: {cause}')
-        cause_rule = CAUSE_RULES[cause.name]
+        cause_rule = PENALTY_CAUSE_RULES[cause.name]
         args = []
         for idx, type in enumerate(cause_rule['args']):
             arg = cause.arguments[idx]
@@ -521,15 +527,15 @@ def make_reward_map(rewards):
     rmap = {}
     for r in rewards:
         cause = r['Cause']
-        if cause.name not in CAUSE_RULES:
+        if cause.name not in REWARD_CAUSE_RULES:
             raise ValueError(f'Unknown reward cause: {cause}')
-        cause_rule = CAUSE_RULES[cause.name]
+        cause_rule = REWARD_CAUSE_RULES[cause.name]
         args = []
         for idx, type in enumerate(cause_rule['args']):
             arg = cause.arguments[idx]
             args.append(conv_symbol(arg, type))
         target = cause_rule['target']
-        if target in ['#wkndOffs', '#phOffs', '#cnscOffs']:
+        if target in ['#wkndOffs', '#phOffs', '#cnscOffs', '#tueShfts']:
             add(rmap, args[0], (target, 'C'), r)
         else:
             raise ValueError(f'Unknown cause target: {target}')

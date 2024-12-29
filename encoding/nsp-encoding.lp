@@ -274,8 +274,10 @@ requested_leave_days(N, BD, ED) :-
     not pos_request(N, ED+1).
 
 % Max consecutive leave days that can have weekly rest assigned either at the beginning or the end.
-adjacent_rest_days_lim(N) :- dep_adjacent_rest_days_lim(N).
-adjacent_rest_days_lim(7) :- not dep_adjacent_rest_days_lim(_).
+adjacent_rest_days_lim(N) :- dep_adjacent_rest_days_lim(N), N != dummy.
+adjacent_rest_days_lim(7) :- 0 { dep_adjacent_rest_days_lim(N) : date(N) } 0.
+% Suppresses warnings when there are no dep_adjacent_rest_days_lim/1
+dep_adjacent_rest_days_lim(dummy).
 
 % Penalty if weekly rest is not assigned before or after consecutive leave
 violation(soft, adjacent_rest_days(N, BD)) :-
