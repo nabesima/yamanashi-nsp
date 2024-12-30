@@ -221,7 +221,7 @@ class ShiftTable:
                     date = args[2].number
                     p['Req'] = self.cells[staff1][date].text
                     p['Res'] = self.cells[staff2][date].text
-                elif c.match("adjacent_rest_days", 2) or c.match("eq_shifts", 1):
+                elif p['Req'] == 0 and p['Res'] == 0:
                     p['Req'] = p['Res'] = '-'
 
             penalties = self.penalties
@@ -291,9 +291,11 @@ PENALTY_CAUSE_RULES = {
     'isolated_work_day':     { 'target': 'staff-day', 'args': ['num', 'num'] },
     'adjacent_rest_days':    { 'target': 'staff-day', 'args': ['num', 'num'] },
     'se_short_interval':     { 'target': 'staff-day', 'args': ['num', 'num'] },
+    'non_work_days_ub':      { 'target': 'staff-day', 'args': ['num', 'num'] },
 
     'recommended_night_pair': { 'target': 'staff-pair', 'args': ['num', 'num'] },
     'weekend_pair_ub':        { 'target': 'staff-pair', 'args': ['num', 'num'] },
+    'unequal_night_shifts':   { 'target': 'staff-pair', 'args': ['num', 'num'] },
 
     'forbidden_night_pair':   { 'target': 'staff-pair-day', 'args': ['num', 'num', 'num'] },
 }

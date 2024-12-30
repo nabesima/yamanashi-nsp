@@ -21,9 +21,9 @@ dep_priority(prev_shift(N, D, S), 4) :-
     staff(N), base_date(D), prev_shift(_, S, _).
 % Prioritize UB and LB for shift patterns
 dep_priority(pattern_lb(N, PID), 4) :-
-    staff(N), pattern_lb(_, PID, _).
+    staff(N), staff_group(NG, N), pattern_lb(_, PID, NG, _).
 dep_priority(pattern_ub(N, PID), 4) :-
-    staff(N), pattern_ub(_, PID, _).
+    staff(N), staff_group(NG, N), pattern_ub(_, PID, NG, _).
 
 % Prioritize vertical and horizontal constraints
 dep_priority(staff_lb(NG, SG, D), 2) :-

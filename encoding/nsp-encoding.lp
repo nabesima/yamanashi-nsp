@@ -116,22 +116,25 @@ violation(hard, eq_shifts(N)) :-
 % Enumerate full consecutive work periods for each nurse
 % The last day of the consecutive work period must be after the previous month's end.
 % (this is to avoid consecutive work violations in the manual shift table for the previous month).
-full_work_period(UB, N, BD, ED) :-
-    consecutive_work_ub(_, UB),
+full_work_period(N, BD, ED) :-
+    consecutive_work_ub(_, NG, UB),
     staff(N),
+    staff_group(NG, N),
     base_date(BD), ED=BD+UB-1, base_date(ED), -1 <= ED,
     work_day(N, D) : D = BD..ED.
 
 % Each nurse must not exceed the full consecutive working days.
 violation(T, consecutive_work_days(N, BD), UB, UB+1) :-
-    consecutive_work_ub(T, UB),
-    full_work_period(UB, N, BD, ED),
+    consecutive_work_ub(T, NG, UB),
+    staff_group(NG, N),
+    full_work_period(N, BD, ED),
     work_day(N, ED+1).
 
 % A shift requiring next-day work is not assigned on the last day of a full consecutive period.
 violation(T, consecutive_work_days(N, BD), UB, UB+1) :-
-    consecutive_work_ub(T, UB),
-    full_work_period(UB, N, BD, ED),
+    consecutive_work_ub(T, NG, UB),
+    staff_group(NG, N),
+    full_work_period(N, BD, ED),
     ext_assigned(N, ED, S),
     has_next_work_day(S).
 
@@ -175,15 +178,17 @@ requested_pattern(PID, N, BD, ED) :-
 
 % Violates the lower bound (LB) for pattern PID if occurrences (X) are less than LB.
 violation(T, pattern_lb(N, PID), LB, X) :-
+    pattern_lb(T, PID, NG, LB),
     staff(N),
-    pattern_lb(T, PID, LB),
+    staff_group(NG, N),
     X = { pattern_occured(PID, N, BD, ED) : date(ED) },  % The last shift in the pattern must occur within this month.
     X < LB.
 
 % Violates the upper bound (UB) for pattern PID if occurrences (X) exceed UB.
 violation(T, pattern_ub(N, PID), UB, X) :-
-    pattern_ub(T, PID, UB),
+    pattern_ub(T, PID, NG, UB),
     staff(N),
+    staff_group(NG),
     X = { pattern_occured(PID, N, BD, ED) : date(ED) },   % The last shift in the pattern must occur within this month.
     UB < X.
 
@@ -283,7 +288,7 @@ dep_adjacent_rest_days_lim(dummy).
 violation(soft, adjacent_rest_days(N, BD)) :-
     requested_leave_days(N, BD, ED),
     adjacent_rest_days_lim(LIM),
-    ED - BD + 1 < LIM,
+    ED - BD + 1 <= LIM,
     work_day(N, BD-1),
     work_day(N, ED+1).
 
@@ -348,19 +353,24 @@ achievement(consecutive_rests(N), PAST_MAX - PAST_OWN + 1) :-
 %----------------------------------------------------------------------
 
 % Extends 'assigned/3' to 'ext_assigned/3'
+% - assigned/3 is defined only for work shifts.
+% - ext_assigned/3 applies to all shifts.
 ext_assigned(N, D, S) :- assigned(N, D, S).
 ext_assigned(N, D, "WR") :- not assigned(N, D), weekly_rest_available_date(N, D).
 ext_assigned(N, D, "PH") :- not assigned(N, D), public_holiday_available_date(N, D).
 1 { ext_assigned(N, D, S) : manual_request(N, D, S) } 1 :- not assigned(N, D), manual_request(N, D).
 
-% work_day/2 represents working days not only for the current month
-% but also for the previous and next months.
+% work_day/2 represents working days
 work_day(N, D) :- ext_assigned(N, D, S), work_shift(S).
 work_day(N, D) :- ext_assigned(N, D, S), business_shift(S).
 
-% rest_day/2 represents rest days not only for the current month
-% but also for the previous and next months.
+% rest_day/2 represents rest days
 rest_day(N, D) :- ext_assigned(N, D, S), rest_shift(S).
+% leave_day/2 represents leave days
+leave_day(N, D) :- ext_assigned(N, D, S), leave_shift(S).
+% non_work_day/2 represents rest or leave days
+non_work_day(N, D) :- rest_day(N, D).
+non_work_day(N, D) :- leave_day(N, D).
 
 %----------------------------------------------------------------------
 % Hard constraints
@@ -409,8 +419,8 @@ cause_type(eq_shifts(N)) :- staff(N).
 cause_type(consecutive_work_days(N, D)) :- staff(N), base_date(D).
 cause_type(pos_request(N, D)) :- pos_request(N, D).
 cause_type(neg_request(N, D)) :- neg_request(N, D).
-cause_type(pattern_lb(N, PID)) :- staff(N), pattern_lb(_, PID, _).
-cause_type(pattern_ub(N, PID)) :- staff(N), pattern_ub(_, PID, _).
+cause_type(pattern_lb(N, PID)) :- staff(N), staff_group(NG, N), pattern_lb(_, PID, NG, _).
+cause_type(pattern_ub(N, PID)) :- staff(N), staff_group(NG, N), pattern_ub(_, PID, NG, _).
 cause_type(forbidden_pattern(N, D, PID)) :- staff(N), base_date(D), forbidden_pattern(PID).
 cause_type(next_shift(N, D, S)) :- staff(N), base_date(D), next_shift(_, S, _).
 cause_type(prev_shift(N, D, S)) :- staff(N), base_date(D), prev_shift(_, S, _).

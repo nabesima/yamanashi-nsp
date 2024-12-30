@@ -218,6 +218,7 @@ class Pattern:
 class PatternBound:
     btype: str
     pattern: Pattern
+    staff_group: StaffGroup
     val: int
 
     def __post_init__(self):
@@ -225,7 +226,7 @@ class PatternBound:
             raise ValueError(f'Unexpected staff bound type: {self.btype}')
 
     def to_asp(self, out):
-        print(f'pattern_{self.btype}("{self.pattern.name}", {self.val}).', file=out)
+        print(f'pattern_{self.btype}("{self.pattern.name}", "{self.staff_group.name}", {self.val}).', file=out)
 
 @dataclass
 class ForbiddenPattern:
@@ -237,6 +238,7 @@ class ForbiddenPattern:
 @dataclass
 class ConsecWorkDays:
     btype: str
+    staff_group: StaffGroup
     val: int
 
     def __post_init__(self):
@@ -244,7 +246,7 @@ class ConsecWorkDays:
             raise ValueError(f'Unexpected staff bound type: {self.btype}')
 
     def to_asp(self, out):
-        print(f'consecutive_work_ub({self.btype}, {self.val}).', file=out)
+        print(f'consecutive_work_ub({self.btype}, "{self.staff_group.name}", {self.val}).', file=out)
 
 @dataclass
 class PrevShift:
@@ -384,8 +386,9 @@ class NSP:
         p = Pattern(shifts)
         if p not in self.shift_patterns:
             self.shift_patterns.append(p)
-        if p not in self.pattern_bounds:
-            self.pattern_bounds.append(PatternBound(btype, p, val))
+        for staff_gname in self.staff_groups:
+            staff_group = self.staff_groups[staff_gname]
+            self.pattern_bounds.append(PatternBound(btype, p, staff_group, val))
 
     def add_forbidden_pattern(self, shifts: list[str]):
         p = Pattern(shifts)
@@ -501,7 +504,9 @@ class NSP:
                                 self.add_staff_bound(btype, staff_group, shift_group, dweek, num)
 
     def set_default_consec_work_days(self, val):
-        self.consecutive_work_days.append(ConsecWorkDays('hard', val))
+        for staff_gname in self.staff_groups:
+            staff_group = self.staff_groups[staff_gname]
+            self.consecutive_work_days.append(ConsecWorkDays('hard', staff_group, val))
 
     def set_default_staff_requests(self, ratio, def_req_staffs):
         req_shifts = ["D", "SE", "SN", "WR", "BT", "TR", "AL", "BL"]

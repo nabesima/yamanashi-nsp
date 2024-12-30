@@ -299,16 +299,16 @@ shifts_hard_ub(dummy, dummy, 0).
 %----------------------------------------------------------------------
 % Define LB and UB for shift patterns
 %----------------------------------------------------------------------
-pattern_lb(soft, PID, V) :- pattern_soft_lb(PID, V).
-pattern_ub(soft, PID, V) :- pattern_soft_ub(PID, V).
-pattern_lb(hard, PID, V) :- pattern_hard_lb(PID, V).
-pattern_ub(hard, PID, V) :- pattern_hard_ub(PID, V).
+pattern_lb(soft, PID, NG, V) :- pattern_soft_lb(PID, NG, V).
+pattern_ub(soft, PID, NG, V) :- pattern_soft_ub(PID, NG, V).
+pattern_lb(hard, PID, NG, V) :- pattern_hard_lb(PID, NG, V).
+pattern_ub(hard, PID, NG, V) :- pattern_hard_ub(PID, NG, V).
 
 % Suppresses warnings when there are no pattern bounds
-pattern_soft_lb(dummy, 0).
-pattern_soft_ub(dummy, 0).
-pattern_hard_lb(dummy, 0).
-pattern_hard_ub(dummy, 0).
+pattern_soft_lb(dummy, dummy, 0).
+pattern_soft_ub(dummy, dummy, 0).
+pattern_hard_lb(dummy, dummy, 0).
+pattern_hard_ub(dummy, dummy, 0).
 
 %----------------------------------------------------------------------
 % Past shift assignments related
