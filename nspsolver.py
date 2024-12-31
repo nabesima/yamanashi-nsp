@@ -11,7 +11,7 @@ import argparse
 
 from colorama import Fore, Style
 import colorama
-from showmodel import make_shift_table
+from showmodel import make_shift_table, read_model
 
 # An event flag to signal when the solving process should stop (e.g., triggered by Ctrl+C).
 stop_event = threading.Event()
@@ -214,6 +214,13 @@ class NSPContext:
         m = m.number
         return clingo.Number(n if n > m else m)
 
+def make_prioritized_model(in_file: str, out_file: str):
+    atoms = read_model(in_file)
+    with open(out_file, 'w') as out:
+        for atom in atoms:
+            if atom.match("assigned", 2) or atom.match("assigned", 3):
+                print(f'legacy({atom}).', file=out)
+
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="NSPSolver")
@@ -226,6 +233,7 @@ def main():
     parser.add_argument("-M", action="store_true", help="Display all atoms.")
     parser.add_argument("-s", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
     parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")
+    parser.add_argument("-p", "--prioritize", nargs="?", type=str, const="found-model.lp", help="Specify the file containing the model to prioritize during search")
     parser.add_argument("--mono", action="store_true", help="Display output in monochrome (no colors).")
     parser.add_argument(
         "-v", "--verbose",
@@ -244,7 +252,7 @@ def main():
         help="Set statistics level (0: silent, 1: basic, 2: detailed)"
     )
     # Pass unrecognized arguments to Clingo
-    args, unknown_args = parser.parse_known_args()
+    args, clingo_args = parser.parse_known_args()
 
     # Display found models?
     show_model = None
@@ -256,6 +264,13 @@ def main():
     # Set color mode
     colorama.init(strip=args.mono)
 
+    # If a prioritized model file is specified, extract the assigned predicates from the model
+    # and prioritize them.
+    if args.prioritize:
+        make_prioritized_model(args.prioritize, "prioritized-model.lp")
+        args.files.append("prioritized-model.lp")
+        clingo_args.append("--heuristic=Domain")
+
     # Add signal hander
     signal.signal(signal.SIGINT, signal_handler)
 
@@ -264,14 +279,14 @@ def main():
         print(f'Date: {datetime.datetime.now()}')
         cmd = ["clingo"]
         cmd += args.files
-        cmd += unknown_args
+        cmd += clingo_args
         print(f'Command: {" ".join(cmd)}')
 
     # Create an NSPSolver instance
     solver = NSPSolver(
         files=args.files,
         output=args.output,
-        clingo_options=unknown_args,
+        clingo_options=clingo_args,
         show_model=show_model,
         show_table=args.s,
         verbose=args.verbose,

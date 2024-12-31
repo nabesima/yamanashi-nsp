@@ -577,11 +577,7 @@ def read_model(file):
         facts = [fact.rstrip(".") for fact in lines]
 
     atoms = parse_model(facts)
-    table = make_shift_table(atoms)
-    if table:
-        table.display()
-    else:
-        print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
+    return atoms
 
 def monitor_file(file, interval):
     """Monitor the file for changes and reload when updated."""
@@ -591,7 +587,12 @@ def monitor_file(file, interval):
             current_modified = os.path.getmtime(file)
             if current_modified != last_modified:
                 last_modified = current_modified
-                read_model(file)
+                atoms = read_model(file)
+                table = make_shift_table(atoms)
+                if table:
+                    table.display()
+                else:
+                    print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
             time.sleep(interval)
         except FileNotFoundError:
             print(f"File '{file}' not found. Waiting for it to be created...")
@@ -620,7 +621,12 @@ def main():
     if args.follow:
         monitor_file(args.file, interval=args.follow)
     else:
-        read_model(args.file)
+        atoms = read_model(args.file)
+        table = make_shift_table(atoms)
+        if table:
+            table.display()
+        else:
+            print(f"Error: file '{args.file}' contains no shift assignments (ext_assigned/3).")
 
 if __name__ == "__main__":
     main()
