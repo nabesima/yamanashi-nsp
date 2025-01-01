@@ -1,0 +1,8 @@
+% Prioritize reproducing past assigned/2 and assigned/3 assignments.
+#heuristic assigned(N, D, S) : legacy(assigned(N, D, S)). [1, true]
+#heuristic assigned(N, D) : legacy(assigned(N, D)). [1, true]
+
+% Reproduce the assignment if there are fixed shift requests.
+:- fixed(assigned(N, D, S)), work_shift(S), not assigned(N, D).
+:- fixed(assigned(N, D, S1)), ext_assigned(N, D, S2), S1 != S2.
+%:- fixed(assigned(N, D, S)), not ext_assigned(N, D, S).

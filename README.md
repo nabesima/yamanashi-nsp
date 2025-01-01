@@ -1,0 +1,253 @@
+# An ASP-Based NSP Solver for Yamanashi Instances
+
+This repository offers encoding and instances for the Nurse Scheduling Problem
+(NSP) using Answer Set Programming (ASP). The instances are categorized into two
+types: *real-world* and *artificial*. The real-world instances are anonymized
+datasets derived from the nurse scheduling challenges at Yamanashi University
+Hospital. The artificial instances are designed for testing and benchmarking
+purposes and include scripts for generating customizable problem scenarios.
+
+## Requirements
+
+To use this solver, ensure the following dependencies are installed:
+
+- **Python**: Version 3.7 or higher
+- **Clingo**: Version 5.7.1 or higher
+- **Python Packages**:
+  - `colorama`
+  - `Faker`
+  - `jpholiday`
+  - `pandas`
+
+# NSP Instances
+
+## Real Instances
+
+The nurse scheduling problem at Yamanashi University Hospital involves
+determining 28-day shift schedules for each nurse. The shifts include 8 types of
+work shifts, 2 types of rest shifts, 3 types of business shifts, and 10 types of
+leave shifts. These are summarized in the table below:
+
+
+| Work shifts | Description   | Rest shifts | Description |Business shifts | Description |Leave shifts | Description |
+| ---: | --- | ---: | --- | ---: | --- | ---: | --- |
+| **D**  | Day                | **WR** | Weekly rest      | **BT** | Business trip       | **AL** | Annual leave       |
+| **LD** | Long day           | **PH** | Public holiday   | **TR** | Training            | **BL** | Bereavement leave  |
+| **EM** | Early morning      |        |                  | **HC** | Health check        | **HL** | Health leave       |
+| **LM** | Late morning       |        |                  |        |                     | **ML** | Maternity leave    |
+| **E**  | Evening            |        |                  |        |                     | **NL** | Nursing leave      |
+| **SE** | Short evening      |        |                  |        |                     | **PL** | Parental leave     |
+| **N**  | Night              |        |                  |        |                     | **SL** | Sick leave         |
+| **SN** | Short night        |        |                  |        |                     | **SP** | Special leave      |
+|        |                    |        |                  |        |                     | **VL** | Volunteer leave    |
+|        |                    |        |                  |        |                     | **WL** | Wedding leave      |
+
+Among these, business shifts and leave shifts are assigned based on nurses'
+requests, while **work shifts** and **rest shifts** are the primary targets for
+automatic schedule generation.
+
+The [/real-instances](/real-instances) directory contains Nurse Scheduling
+Problem (NSP) instances from various nursing departments at Yamanashi University
+Hospital. All instances have been anonymized. The file names for these NSP
+instances follow the format `YYYY-MM-DD-XXX.lp`, where `YYYY-MM-DD` represents
+the start date of the schedule, and `XXX` is an abbreviation for the department
+name.
+
+These files are designed to include the following files located in the
+`YYYY-MM-DD-XXX` directory and the [/encoding](/encoding) directory.
+
+- `date.lp`
+    - This file defines the dates used in the shift schedule. The shift table
+      spans 28 days (4 weeks) and includes one week from the end of the previous
+      month and one week from the beginning of the following month to ensure
+      consistency with adjacent shifts. Additionally, past dates are included to
+      promote fairness in shift burden.q
+
+    - Dates are provided in two formats: Gregorian calendar dates as integers in
+      the `YYYYMMDD` format and relative values, where the start date of the
+      schedule is represented as 0.
+
+    - Five predicates (base_date, prev_date, date, next_date, past_date) are
+      used to represent dates. Their relationships are illustrated below. The
+      starting date of past_date depends on the specific NSP instance.
+
+    ```mermaid
+    gantt
+        dateFormat YYYY-MM-DD
+        section Period
+            past_date      :2024-07-30, 2024-08-18
+            base_date (6w) :2024-08-11, 42d
+            prev_date (1w) :2024-08-11, 7d
+            date (4w)      :28d
+            next_date (1w) :7d
+    ```
+
+- `past-shifs.lp`
+  - This file represents past shift data corresponding to the previously
+    mentioned `past_date`. It is used to promote fairness in shift burdens, such
+    as equalizing the number of weekend days off.
+
+- `requested-shifts.lp`
+
+  - This file represents the requested shifts of each nurse. Due to the
+    requirements of the system used at the university hospital, requested shifts
+    are defined using the `shift_data/4` predicate. These are converted into
+    `pos_request(N, D, S)` by [encoding/nsp-prepro.lp](encoding/nsp-prepro.lp),
+    where N denotes a nurse, D a day, and S a shift. In our NSP, requested
+    shifts are treated as *hard constraints*.
+
+  - In the real instances within this repository, at most one pos_request is
+    defined per nurse per day. This limitation is due to the export
+    functionality of the system used at the university hospital. However, in
+    practice, multiple requests can exist, such as `pos_request(N, D, S1), ...,
+    pos_request(N, D, Sn)`, and one of these requested shifts must be assigned.
+    Conversely, dispreferred shifts can be represented using the neg_request(N,
+    D, S) predicate, which can also be declared multiple times. These predicates
+    indicate that none of the specified dispreferred shifts should be assigned.
+
+- `setting.lp`
+  - This file defines various settings for the department, including:
+    - **Nurses and Nurse Groups**:
+      - Lists nurses and their group affiliations.
+    - **Shift Groups**:
+      - Defines shift group settings:
+      - Unlike general NSPs, our NSP introduces the concept of shift groups. For
+        example, the day shift consists of two types: `D` (regular day shift)
+        and `LD` (long day shift). Constraints, such as requiring at least 10
+        nurses for either `D` or `LD`, are applied.
+    - **Day-by-Day Shift Assignment Bounds**:
+      - Specifies upper and lower bounds for the required number of staff based
+        on the day of the week, nurse group, and shift (or shift group).
+    - **Nurse-by-Nurse Shift Assignment Bounds**:
+      - Specifies upper and lower bounds for the number of times each nurse can
+        be assigned to specific shifts.
+    - **Workday and Shift Constraints**:
+      - Defines the maximum number of consecutive workdays allowed for each group.
+      - Specifies inter-shift constraints (e.g., only evening shifts are allowed
+        before a night shift).
+      - Lists forbidden shift patterns.
+      - Includes upper and lower bounds for shift pattern assignments for each
+        group on a daily basis.
+  - Constraints that define upper and lower bounds are often expressed using two
+    types: hard bounds and soft bounds. Hard bounds represent ranges that must
+    be strictly satisfied, while soft bounds represent ranges that should
+    ideally be satisfied as much as possible. Typically, the relationship is as
+    follows:
+
+      ```
+      |------------------------ Mandatory Range -------------------------|
+      |               |---------- Ideal Range ----------|                |
+      Hard Lower      Soft Lower               Soft Upper       Hard Upper
+    ```
+
+- `/encoding/nsp-XXX.lp`
+  - This file defines department-specific constraints as well as the priorities
+    of both department-specific and non-department-specific constraints. In our
+    NSP, the objective function minimizes the weighted violations of soft
+    constraints. The minimization is performed in lexicographic order based on
+    the priority levels.
+  - Soft constraint priorities range from 1 to 9. If the NSP is unsatisfiable,
+    hard constraints are relaxed into soft constraints and solved again. In this
+    case, the priority of the relaxed hard constraints is increased by 9 from
+    the corresponding soft constraint priority, resulting in hard constraint
+    priorities ranging from 10 to 19.
+
+## Artificial Instances
+
+*Under construction*
+
+Artificially generated NSP instances for benchmarking and testing. These instances are generated using pre-defined rules and random data.
+
+# NSP Solving
+
+## Using `nspsolver.py`
+
+`nspsolver.py` is a script for solving NSP instances.
+If the given NSP instance is unsatisfiable, `nspsolver.py` automatically relaxes hard constraints into soft constraints and solves the problem again (internally by defining the predicate `soften_hard` and retrying).
+The script runs Clingo internally. Any options not directly supported by `nspsolver.py` are passed to Clingo. For example, specifying the -t 4 option enables solving with four threads in parallel.
+
+**Typical Usage**
+```shell
+./nspsolver.py nsp.lp /path/to/nsp-instance.lp -s
+```
+`nsp.lp` is the ASP encoding for NSP. The `-s` option generates and displays a shift table each time a model is found.
+
+Below is an example of the shift table output.
+
+<img src="images/screenshot.png" alt="Output Example" width="800">
+
+**Cell Background Colors**
+- Red background: Indicates a constraint violation.
+- Light blue background: Represents a rewarded condition.
+- Green background: Indicates the presence of either a positive or negative request from a nurse.
+
+**Top-Right Section**
+- `#shifts`: The number of assignments for each shift during the current month.
+- `#wkndOffs`: The number of weekend days off, categorized as `P` (past), `C` (current month), and `T` (total).
+- `#phOffs`: The number of public holiday days off assigned.
+- `#cnscOffs`: The number of consecutive weekly rest days assigned.
+
+**Center-Left Section**
+- The first column lists the nurse groups: `All`, `Expert`, and `Medium`.
+- The adjacent column represents shifts (or groups of shifts).
+- Example: `All D #S` indicates the number of staff members from the `All` group assigned to shift `D`. If it represents a point instead of a quantity, it is denoted as `#P`.
+
+**Penalties**
+- Penalties are displayed in order of priority, starting from the highest. The following abbreviations are used:
+    - `P`: Priority
+    - `W`: Weight
+    - `Type`: Indicates whether the penalty is soft or hard
+    - `Cause`: Reason for the violation
+    - `Req`: Expected value
+    - `Res`: Actual value
+
+### Displaying Models on Demand
+
+If the `nspsolver.py` script outputs many models, the output may scroll quickly, making it difficult to follow. The `nspsolver.py` script writes each model to the file `found-model.lp` (or a file specified with the `-o` option) as it is found, with only the latest model being retained. The model file can be displayed using the `showmodel.py` script. This allows you to run `nspsolver.py` on one terminal and use another terminal to monitor the latest model using `showmodel.py`.
+```shell
+./nspsolver.py nsp.lp /path/to/nsp-instance.lp  # Run in one terminal
+./showmodel.py                                  # Run in another terminal
+```
+To view models as Clingo finds them, use the `-f` option of `showmodel.py`. This checks the model file for updates and displays the latest model every second (the check interval can be adjusted by specifying an argument for the -f option).
+
+### Resuming Search After Interruption
+
+Even if the execution of `nsp-solver.py` is interrupted (e.g., by pressing `Ctrl+C`), you can effectively resume the search using the `-p` option. This option prioritizes and reproduces the assignments of the assigned predicates contained in the `found-model.lp` file, enabling you to continue the search to some extent.
+
+
+```shell
+./nspsolver.py nsp.lp /path/to/nsp-instance.lp
+Ctrl+C detected! Stopping Clingo...
+
+./nspsolver.py nsp.lp /path/to/nsp-instance.lp -p
+```
+
+## Solving Directly with Clingo
+For users familiar with Clingo, you can directly solve an NSP instance as follows:
+
+```shell
+clingo nsp-cli.lp /path/to/nsp-instance.lp > nsp.log
+```
+
+`nsp-cli.lp` is similar to `nsp.lp`, but includes Python scripts (`nsp-prepro-helper.lp`) for pre-processing and introduces the constant `soften_hard_on` to control the relaxation of hard constraints. By default, hard constraints are enabled. If you specify `-c soften_hard_on=1` in Clingo's command line arguments, the hard constraints will be relaxed into soft constraints.
+
+```shell
+clingo nsp-cli.lp /path/to/nsp-instance.lp -c soften_hard_on=1 > nsp.log
+```
+
+`showmodel.py` constructs and displays a shift table from the last model in the log file.
+
+```shell
+./showmodel.py nsp.log
+```
+
+# NSP Instance Generation
+
+*Under construction*
+
+Tools and scripts for generating both real-world and artificial NSP instances. This section should detail:
+- How to configure parameters for instance generation.
+- Example commands for creating instances.
+- Explanation of the output format.
+
+
