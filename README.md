@@ -298,7 +298,84 @@ clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
 clingo nsp.lp cli.lp /path/to/nsp-instance.lp reused-model.lp --heuristic=Domain > nsp.log
 ```
 
+# NSP Encoding
 
+The file **[`nsp.lp`](./nsp.lp)** represents the ASP encoding for the NSP. The
+ASP encoding is divided into separate files based on the types of constraints,
+and **[`nsp.lp`](./nsp.lp)** includes all of these files. Below is a list of
+these files:
+
+- **[`nsp-basic.lp`](./encoding/nsp-basic.lp)**:
+  Core constraints for NSP, including:
+  - Ensures lower and upper bounds on the number of workdays.
+  - Ensures lower and upper bounds on weekly rest days.
+
+- **[`nsp-day-by-day.lp`](./encoding/nsp-day-by-day.lp)**:
+  Defines constraints on day-by-day shift assignments:
+  - Enforces lower and upper limits on the number of shifts assigned per nurse per day.
+
+- **[`nsp-nurse-by-nurse.lp`](./encoding/nsp-nurse-by-nurse.lp)**:
+  Specifies constraints for shift assignments per nurse:
+  - Ensures lower and upper limits on each nurse's individual workload.
+
+- **[`nsp-consecutive-days.lp`](./encoding/nsp-consecutive-days.lp)**:
+  Imposes constraints on consecutive working days:
+  - Restricts specific sequences of workdays to prevent excessive workloads.
+
+- **[`nsp-requested-shifts.lp`](./encoding/nsp-requested-shifts.lp)**:
+  Handles constraints on requested shifts:
+  - Satisfies nurses' preferences or mandatory shift requests.
+
+- **[`nsp-shift-patterns.lp`](./encoding/nsp-shift-patterns.lp)**:
+  Manages constraints on shift patterns:
+  - Defines lower and upper limits on the number of occurrences of specific shift patterns.
+  - Specifies shift patterns that are not allowed.
+
+- **[`nsp-inter-shifts.lp`](./encoding/nsp-inter-shifts.lp)**:
+  Defines constraints on inter-shift relationships:
+  - Specifies and enforces allowable transitions between consecutive shifts.
+
+- **[`nsp-nurse-pairs.lp`](./encoding/nsp-nurse-pairs.lp)**:
+  Specifies constraints for nurse pair assignments:
+  - Defines preferred nurse pairs for night shifts.
+  - Specifies nurse pairs that cannot work together during night shifts.
+
+- **[`nsp-isolated-days.lp`](./encoding/nsp-isolated-days.lp)**:
+  Prevents isolated work days:
+  - Ensures that workdays are not unnecessarily surrounded by days off.
+
+- **[`nsp-leave-with-rest.lp`](./encoding/nsp-leave-with-rest.lp)**:
+  Handles constraints for leave days with weekly rest:
+  - Assigns weekly rest days before and/or after the requested leave period if possible.
+
+- **[`nsp-equal-distribution.lp`](./encoding/nsp-equal-distribution.lp)**:
+  Enforces constraints for equal shift distribution:
+  - Balances workloads fairly among nurses to promote equity.
+
+## Stepwise NSP Encoding
+
+To evaluate the impact of each constraint, we provide the following stepwise NSP
+encodings. Each file incrementally includes the constraints from the previous
+steps. For example:
+
+- `nsp-2-day-by-day.lp` includes all constraints from `nsp-1-basic.lp`.
+- `nsp-3-nurse-by-nurse.lp` includes all constraints from `nsp-2-day-by-day.lp`.
+
+The file `nsp-11-equal.lp` is equivalent to `nsp.lp`.
+
+| **Step** | **File Name**          | **Added Constraints**                                |
+|----------|------------------------|-----------------------------------------------------|
+| **1**    | `nsp-1-basic.lp`       | Core constraints: workdays and weekly rest bounds   |
+| **2**    | `nsp-2-day-by-day.lp`  | Day-by-day shift assignment bounds                  |
+| **3**    | `nsp-3-nurse-by-nurse.lp` | Nurse-by-nurse workload bounds                     |
+| **4**    | `nsp-4-consecutive.lp` | Consecutive working day restrictions               |
+| **5**    | `nsp-5-requested.lp`   | Requested shifts                                    |
+| **6**    | `nsp-6-patterns.lp`    | Shift pattern constraints                           |
+| **7**    | `nsp-7-inter.lp`       | Inter-shift relationships                           |
+| **8**    | `nsp-8-pairs.lp`       | Nurse pair constraints                              |
+| **9**    | `nsp-9-isolated.lp`    | Prevention of isolated workdays                    |
+| **10**   | `nsp-10-leave.lp`      | Leave days with weekly rest                        |
+| **11**   | `nsp-11-equal.lp`      | Equal shift distribution                           |
 
 # NSP Instance Generation
 
