@@ -1,10 +1,12 @@
 %----------------------------------------------------------------------
-% A nurse can work on a workable day
+% Constraints on Workable Days
 %----------------------------------------------------------------------
+
+% A nurse can work on a workable day
 { assigned(N, D) : workable_date(N, D) } :- staff(N).
 
 %----------------------------------------------------------------------
-% Assigns shifts within the working days
+% Constraints on Work Days and Shift Assignments
 %----------------------------------------------------------------------
 
 % A nurse must work at least LB days
@@ -26,11 +28,12 @@ violation(hard, work_days_ub(N), UB, X) :-
 1 { assigned(N, D, S) : work_shift(S) } 1 :- assigned(N, D).
 
 %----------------------------------------------------------------------
-% Do not assigns shifts within the weekly rest days
+% Constraints on Weekly Rest Assignments
 %----------------------------------------------------------------------
 
-% Weekly rest (Required because work days + weekly rest days != width
-% when there are public holidays or requested leaves)
+% Do not assigns shifts within the weekly rest days (Required because work days
+% + weekly rest days != width when there are public holidays or requested
+% leaves)
 violation(hard, weekly_rest_lb(N), LB, X) :-
     weekly_rest_bounds(N, LB, UB),
     X = { not assigned(N, D) : weekly_rest_available_date(N, D) },
@@ -45,7 +48,7 @@ violation(hard, weekly_rest_ub(N), UB, X) :-
 %     weekly_rest_bounds(N, LB, UB), not soften_hard.
 
 %----------------------------------------------------------------------
-% Vertical constraints
+% Constraints on Day-by-Day Shift Assignments
 %----------------------------------------------------------------------
 
 % Allocates LB or more staffs
@@ -88,7 +91,7 @@ violation(hard, point_ub(NG, SG, D), UB, X) :-
     violation(hard_sp, point_ub(NG, SG, D), UB, X).
 
 %----------------------------------------------------------------------
-% Horizontal constraints
+% Constraints on Nurse-by-Nurse Shift Assignments
 %----------------------------------------------------------------------
 
 % Assigns LB or more shifts
@@ -110,7 +113,7 @@ violation(hard, eq_shifts(N)) :-
                 -1, D : assigned(N, D, "SE") } 0.
 
 %----------------------------------------------------------------------
-% Constraints on consecutive working days
+% Constraints on Consecutive Working Days
 %----------------------------------------------------------------------
 
 % Enumerate full consecutive work periods for each nurse
@@ -143,7 +146,7 @@ has_next_work_day(S) :-
     work_shift(NS) : next_shift(hard, S, NS).
 
 %----------------------------------------------------------------------
-% Constraints on requested shifts
+% Constraints on Requested Shifts
 %----------------------------------------------------------------------
 
 % positive requested shifts must be assigned
@@ -162,7 +165,7 @@ violation(hard, neg_request(N, D)) :-
      pos_request(N, D), next_date(D).
 
 %----------------------------------------------------------------------
-% Constraints on shift patterns
+% Constraints on Shift Patterns
 %----------------------------------------------------------------------
 
 pattern_occured(PID, N, D, D+LEN-1) :-
@@ -200,7 +203,7 @@ violation(hard, forbidden_pattern(N, BD, PID)) :-
     date((BD;ED)).
 
 %----------------------------------------------------------------------
-% Constraints on inter-shifts
+% Constraints on Inter-Shift Relationships
 %----------------------------------------------------------------------
 
 % Assuming that next_shift(hard, S, _) and next_shift(soft, S, _) are mutually exclusive
@@ -228,7 +231,7 @@ violation(hard, prev_shift(N, D, S)) :-
             not ext_assigned(N, D-1, _) : first_date(D) } 1.  % If nurse N has no assignment on D-1, any previous shift can be assigned.
 
 %----------------------------------------------------------------------
-% Constraints on pairs
+% Constraints on Nurse Pairs
 %----------------------------------------------------------------------
 
 % Recommended night shift pairs must be assigned the same night shift at least the specified number of times.
@@ -251,7 +254,7 @@ recommended_night_pair(dummy, dummy, dummy).
 forbidden_night_pair(dummy, dummy).
 
 %----------------------------------------------------------------------
-% Constraints on isolated work days
+% Constraints on Isolated Work Days
 %----------------------------------------------------------------------
 isolated_work_day(N, D+1) :-
     staff(N),
@@ -265,7 +268,7 @@ violation(soft, isolated_work_day(N, D)) :-
     isolated_work_day(N, D).
 
 %----------------------------------------------------------------------
-% Constraints on requested leaves
+% Constraints for Leave Days With Weekly Rest
 %----------------------------------------------------------------------
 
 requested_leave_days(N, BD, ED) :-
@@ -293,7 +296,7 @@ violation(soft, adjacent_rest_days(N, BD)) :-
     work_day(N, ED+1).
 
 %----------------------------------------------------------------------
-% Constraints related to rewards
+% Constraints for Equal Shift Distribution
 %----------------------------------------------------------------------
 
 num_curr_weekend_offs(N, X) :-
