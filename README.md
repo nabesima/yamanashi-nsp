@@ -358,24 +358,24 @@ To evaluate the impact of each constraint, we provide the following stepwise NSP
 encodings. Each file incrementally includes the constraints from the previous
 steps. For example:
 
-- `nsp-2-day-by-day.lp` includes all constraints from `nsp-1-basic.lp`.
-- `nsp-3-nurse-by-nurse.lp` includes all constraints from `nsp-2-day-by-day.lp`.
+- [`nsp-2-day-by-day.lp`](./nsp-2-day-by-day.lp) includes all constraints from [`nsp-1-basic.lp`](./nsp-1-basic.lp).
+- [`nsp-3-nurse-by-nurse.lp`](./nsp-3-nurse-by-nurse.lp) includes all constraints from [`nsp-2-day-by-day.lp`](./nsp-2-day-by-day.lp).
 
-The file `nsp-11-equal.lp` is equivalent to `nsp.lp`.
+The file [`nsp-11-equal.lp`](./nsp-11-equal.lp) is equivalent to [`nsp.lp`](./nsp.lp).
 
-| **Step** | **File Name**          | **Added Constraints**                                |
-|----------|------------------------|-----------------------------------------------------|
-| **1**    | `nsp-1-basic.lp`       | Core constraints: workdays and weekly rest bounds   |
-| **2**    | `nsp-2-day-by-day.lp`  | Day-by-day shift assignment bounds                  |
-| **3**    | `nsp-3-nurse-by-nurse.lp` | Nurse-by-nurse workload bounds                     |
-| **4**    | `nsp-4-consecutive.lp` | Consecutive working day restrictions               |
-| **5**    | `nsp-5-requested.lp`   | Requested shifts                                    |
-| **6**    | `nsp-6-patterns.lp`    | Shift pattern constraints                           |
-| **7**    | `nsp-7-inter.lp`       | Inter-shift relationships                           |
-| **8**    | `nsp-8-pairs.lp`       | Nurse pair constraints                              |
-| **9**    | `nsp-9-isolated.lp`    | Prevention of isolated workdays                    |
-| **10**   | `nsp-10-leave.lp`      | Leave days with weekly rest                        |
-| **11**   | `nsp-11-equal.lp`      | Equal shift distribution                           |
+| **Step** | **File Name**                                             | **Added Constraints**                                |
+|----------|----------------------------------------------------------|-----------------------------------------------------|
+| **1**    | [`nsp-1-basic.lp`](./nsp-1-basic.lp)                     | Core constraints: workdays and weekly rest bounds   |
+| **2**    | [`nsp-2-day-by-day.lp`](./nsp-2-day-by-day.lp)           | Day-by-day shift assignment bounds                  |
+| **3**    | [`nsp-3-nurse-by-nurse.lp`](./nsp-3-nurse-by-nurse.lp)   | Nurse-by-nurse workload bounds                     |
+| **4**    | [`nsp-4-consecutive.lp`](./nsp-4-consecutive.lp)         | Consecutive working day restrictions               |
+| **5**    | [`nsp-5-requested.lp`](./nsp-5-requested.lp)             | Requested shifts                                    |
+| **6**    | [`nsp-6-patterns.lp`](./nsp-6-patterns.lp)               | Shift pattern constraints                           |
+| **7**    | [`nsp-7-inter.lp`](./nsp-7-inter.lp)                     | Inter-shift relationships                           |
+| **8**    | [`nsp-8-pairs.lp`](./nsp-8-pairs.lp)                     | Nurse pair constraints                              |
+| **9**    | [`nsp-9-isolated.lp`](./nsp-9-isolated.lp)               | Prevention of isolated workdays                    |
+| **10**   | [`nsp-10-leave.lp`](./nsp-10-leave.lp)                   | Leave days with weekly rest                        |
+| **11**   | [`nsp-11-equal.lp`](./nsp-11-equal.lp)                   | Equal shift distribution                            |
 
 # NSP Instance Generation
 

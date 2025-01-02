@@ -460,15 +460,23 @@ def make_shift_table(atoms: list[clingo.Symbol]):
 
     # ------------------------------------------------------------
     # Make the penalty mapping
-    penalty_map = make_penalty_map(model['penalty'])
-    # for key, val in penalty_map.items():
-    #     print(f'{key} = {val}')
+    penalties = []
+    penalty_map = {}
+    if 'penalty' in model:
+        penalties = model['penalty']
+        penalty_map = make_penalty_map(penalties)
+        # for key, val in penalty_map.items():
+        #     print(f'{key} = {val}')
 
     # ------------------------------------------------------------
     # Make the reward mapping
-    reward_map = make_reward_map(model['reward'])
-    # for key, val in reward_map.items():
-    #     print(f'{key} = {val}')
+    rewards = []
+    reward_map = {}
+    if 'reward' in model:
+        rewards = model['reward']
+        reward_map = make_reward_map(rewards)
+        # for key, val in reward_map.items():
+        #     print(f'{key} = {val}')
 
     # ------------------------------------------------------------
     # Make the request mapping for the explanation of penalties
@@ -484,7 +492,7 @@ def make_shift_table(atoms: list[clingo.Symbol]):
     if 'header' in model:
         title = model['header'][0]
 
-    return ShiftTable(title, main_df, right_df, bottom_df, model['penalty'], model['reward'], penalty_map, reward_map, request_map)
+    return ShiftTable(title, main_df, right_df, bottom_df, penalties, rewards, penalty_map, reward_map, request_map)
 
 def add(pmap, row, col, p):
     if row not in pmap:
