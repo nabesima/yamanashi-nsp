@@ -54,7 +54,7 @@ file names for these NSP instances follow the format `YYYY-MM-DD-XXX.lp`, where
 - `XXX` is an abbreviation for the department name.
 
 These files are designed to include the following files located in the
-`YYYY-MM-DD-XXX` directory and the [/encoding](/encoding) directory.
+`YYYY-MM-DD-XXX` directory and the [/encoding/real](/encoding/real) directory.
 
 - `date.lp`
     - This file defines the dates used in NSP. The shift table spans 28 days (4
@@ -142,7 +142,7 @@ These files are designed to include the following files located in the
       Hard Lower      Soft Lower               Soft Upper       Hard Upper
     ```
 
-- `/encoding/nsp-XXX.lp`
+- `/encoding/real/nsp-XXX.lp`
   - This file defines department-specific constraints as well as the priorities
     of both department-specific and non-department-specific constraints.
   - In our NSP, the objective function minimizes the weighted violations of soft

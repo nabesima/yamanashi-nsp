@@ -1,39 +1,39 @@
 % Staffs ---------------------------------------------------
-staff(1, "Emily Fritz", "Chief Nurse", "78802", 2).
-staff(2, "Heather Cole", "Chief Nurse", "38269", 2).
-staff(3, "Alexis Johnston", "Chief Nurse", "30044", 2).
-staff(4, "Kathleen Smith", "Chief Nurse", "95321", 2).
-staff(5, "Jo Walker", "Chief Nurse", "19843", 2).
-staff(6, "Shelley Davis", "Chief Nurse", "92992", 2).
-staff(7, "Daniel Anderson", "Chief Nurse", "93759", 2).
-staff(8, "Amber Smith", "Chief Nurse", "77794", 2).
-staff(9, "Roy Knapp", "Chief Nurse", "85508", 2).
-staff(10, "Brett Short", "Chief Nurse", "57251", 2).
-staff(11, "Amanda Nielsen", "Chief Nurse", "69825", 2).
-staff(12, "Jon Hunter", "Chief Nurse", "52150", 2).
-staff(13, "Michael Ochoa", "Chief Nurse", "87524", 2).
-staff(14, "Matthew Conner", "Chief Nurse", "51953", 2).
-staff(15, "Brian Lynn", "Chief Nurse", "54547", 2).
-staff(16, "Ian Simmons PhD", "Chief Nurse", "05480", 2).
-staff(17, "Justin Rodriguez", "Chief Nurse", "12036", 2).
-staff(18, "Rachel Hernandez", "Chief Nurse", "88883", 2).
-staff(19, "Sharon Davies", "Chief Nurse", "47553", 2).
-staff(20, "Rachel Davis", "Chief Nurse", "47335", 2).
-staff(21, "Matthew Hines", "Chief Nurse", "04991", 2).
-staff(22, "Robin Thompson", "Chief Nurse", "97268", 2).
-staff(23, "Johnny Robinson", "Chief Nurse", "90123", 2).
-staff(24, "Deborah Rich", "Chief Nurse", "27559", 2).
-staff(25, "Rodney Lopez Jr.", "Chief Nurse", "01065", 0).
-staff(26, "James Newton", "Chief Nurse", "84672", 0).
-staff(27, "Tracy Ferguson", "Chief Nurse", "63683", 0).
-staff(28, "Joe Wright", "Chief Nurse", "79839", 0).
-staff(29, "Diamond Jones", "Chief Nurse", "97762", 0).
-staff(30, "Sarah Brown", "Chief Nurse", "66950", 0).
-staff(31, "Helen Bauer", "Chief Nurse", "76547", 0).
-staff(32, "Ariel Marquez", "Chief Nurse", "30967", 0).
-staff(33, "Karen Kelley", "Chief Nurse", "14978", 0).
-staff(34, "Charles Arnold", "Chief Nurse", "20992", 0).
-staff(35, "Andre George", "Chief Nurse", "43930", 0).
+staff(1, "Devin Ray", "Chief Nurse", "87107", 2).
+staff(2, "Roger Adams", "Chief Nurse", "41361", 2).
+staff(3, "Roberta Lara", "Chief Nurse", "54993", 2).
+staff(4, "Kelly Day", "Chief Nurse", "38660", 2).
+staff(5, "Andrew Bryant", "Chief Nurse", "79450", 2).
+staff(6, "Kirk Brown", "Chief Nurse", "41176", 2).
+staff(7, "Cynthia Fleming", "Chief Nurse", "66172", 2).
+staff(8, "Kelly Wolf", "Chief Nurse", "72633", 2).
+staff(9, "Diane Wilson", "Chief Nurse", "07550", 2).
+staff(10, "Kayla Thomas", "Chief Nurse", "37031", 2).
+staff(11, "James Cooper", "Chief Nurse", "71136", 2).
+staff(12, "John Logan", "Chief Nurse", "11642", 2).
+staff(13, "Jay Morton", "Chief Nurse", "93280", 2).
+staff(14, "Veronica Miller", "Chief Nurse", "07951", 2).
+staff(15, "Ann Morse", "Chief Nurse", "57750", 2).
+staff(16, "Michael Saunders", "Chief Nurse", "52610", 2).
+staff(17, "Keith Jenkins", "Chief Nurse", "78323", 2).
+staff(18, "Tonya Riley", "Chief Nurse", "66444", 2).
+staff(19, "Stephanie James", "Chief Nurse", "57986", 2).
+staff(20, "Teresa Jimenez", "Chief Nurse", "99778", 2).
+staff(21, "Pamela Austin", "Chief Nurse", "31594", 2).
+staff(22, "Walter Cervantes", "Chief Nurse", "54653", 2).
+staff(23, "Bryan Hopkins", "Chief Nurse", "22529", 2).
+staff(24, "Jesse Murphy", "Chief Nurse", "18285", 2).
+staff(25, "Gregory Roy", "Chief Nurse", "95866", 0).
+staff(26, "Jennifer Johnson", "Chief Nurse", "97421", 0).
+staff(27, "Dr. Nicholas Zavala", "Chief Nurse", "78160", 0).
+staff(28, "Francisco Osborne", "Chief Nurse", "32516", 0).
+staff(29, "Damon Bright PhD", "Chief Nurse", "50174", 0).
+staff(30, "Joanna Miller", "Chief Nurse", "11115", 0).
+staff(31, "Michael Hamilton", "Chief Nurse", "66620", 0).
+staff(32, "Jennifer Guzman", "Chief Nurse", "92090", 0).
+staff(33, "Theresa Joseph", "Chief Nurse", "70456", 0).
+staff(34, "Rodney Craig", "Chief Nurse", "89482", 0).
+staff(35, "Elizabeth Richardson", "Chief Nurse", "77681", 0).
 % Groups ---------------------------------------------------
 staff_group("All").
 staff_group("All", 1).

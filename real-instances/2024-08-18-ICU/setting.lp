@@ -1,44 +1,44 @@
 % Staffs ---------------------------------------------------
-staff(1, "Peter Burgess PhD", "Deputy Chief Nurse", "87242", 8).
-staff(2, "John Carter", "Deputy Chief Nurse", "19991", 8).
-staff(3, "Nicholas Stein", "Deputy Chief Nurse", "77647", 8).
-staff(4, "Danny Cameron", "Deputy Chief Nurse", "53451", 8).
-staff(5, "Katrina Lee", "Nurse", "86895", 7).
-staff(6, "Lindsey Walker", "Nurse", "78869", 4).
-staff(7, "Barbara Hill", "Nurse", "01137", 7).
-staff(8, "Elizabeth Richardson", "Nurse", "43500", 7).
-staff(9, "Tina Hendricks", "Nurse", "13442", 8).
-staff(10, "Victoria Moore", "Nurse", "66269", 7).
-staff(11, "Rebecca Palmer", "Nurse", "48017", 8).
-staff(12, "Audrey Ramos", "Nurse", "49235", 8).
-staff(13, "William Brooks", "Nurse", "03137", 7).
-staff(14, "Crystal Hill", "Nurse", "45087", 3).
-staff(15, "Susan Garner", "Nurse", "81411", 7).
-staff(16, "Jeremy Johnson", "Nurse", "01569", 7).
-staff(17, "Eric Warner", "Nurse", "00318", 6).
-staff(18, "Lisa Noble", "Nurse", "71190", 6).
-staff(19, "Brandi Rivera", "Nurse", "54261", 4).
-staff(20, "Mark Le", "Nurse", "73795", 4).
-staff(21, "Joseph Brown", "Nurse", "42167", 5).
-staff(22, "Mark Rivera", "Nurse", "85789", 5).
-staff(23, "Carrie Cameron", "Nurse", "84550", 6).
-staff(24, "Ashley Mitchell", "Nurse", "35159", 6).
-staff(25, "Helen Jackson", "Nurse", "83616", 6).
-staff(26, "Michael Harrington", "Nurse", "22222", 3).
-staff(27, "Steve Berg", "Nurse", "12923", 3).
-staff(28, "David Morris", "Nurse", "01896", 3).
-staff(29, "Brian Lopez", "Nurse", "50095", 3).
-staff(30, "Brittany Harris", "Nurse", "04309", 6).
-staff(31, "David Robinson", "Nurse", "00860", 6).
-staff(32, "Amy Higgins", "Nurse", "95549", 5).
-staff(33, "Willie Cunningham", "Nurse", "44769", 5).
-staff(34, "Mercedes Wiley", "Nurse", "36940", 5).
-staff(35, "Edwin Smith", "Nurse", "97351", 3).
-staff(36, "Lori Ray", "Nurse", "50381", 3).
-staff(37, "Kiara Deleon", "Nurse", "70930", 3).
-staff(38, "Jessica Smith", "Nurse", "13299", 3).
-staff(39, "Jason Mccann", "Nurse", "48269", 0).
-staff(40, "Julie Harrington", "Nurse", "91992", 0).
+staff(1, "Lisa Le", "Deputy Chief Nurse", "77761", 8).
+staff(2, "Jessica Long", "Deputy Chief Nurse", "60850", 8).
+staff(3, "Seth Weiss", "Deputy Chief Nurse", "94286", 8).
+staff(4, "Sarah Liu", "Deputy Chief Nurse", "34975", 8).
+staff(5, "Tracey Bennett", "Nurse", "23229", 7).
+staff(6, "Ryan Rogers", "Nurse", "98084", 4).
+staff(7, "Mr. Matthew Bird II", "Nurse", "15801", 7).
+staff(8, "Katie Holt", "Nurse", "24316", 7).
+staff(9, "Justin Larson", "Nurse", "88053", 8).
+staff(10, "Michelle Butler", "Nurse", "16982", 7).
+staff(11, "Zachary Oliver", "Nurse", "49909", 8).
+staff(12, "Crystal Stokes", "Nurse", "37823", 8).
+staff(13, "Mary Arroyo", "Nurse", "10993", 7).
+staff(14, "Cathy Medina", "Nurse", "25532", 3).
+staff(15, "Diamond King", "Nurse", "98078", 7).
+staff(16, "Danielle Anderson", "Nurse", "83981", 7).
+staff(17, "Christopher Harrell", "Nurse", "74711", 6).
+staff(18, "Marie Hoffman", "Nurse", "18407", 6).
+staff(19, "Amber Alvarado", "Nurse", "38996", 4).
+staff(20, "Kevin Taylor", "Nurse", "01679", 4).
+staff(21, "Mr. Kevin Stanton", "Nurse", "51793", 5).
+staff(22, "Christina Garcia", "Nurse", "07322", 5).
+staff(23, "Jose Castro", "Nurse", "14749", 6).
+staff(24, "Linda Clark", "Nurse", "85678", 6).
+staff(25, "Linda Mack", "Nurse", "59013", 6).
+staff(26, "Regina Flores", "Nurse", "31402", 3).
+staff(27, "Maria Fox", "Nurse", "75182", 3).
+staff(28, "James Krause", "Nurse", "11396", 3).
+staff(29, "Frances Dawson", "Nurse", "29441", 3).
+staff(30, "Lindsay Carlson", "Nurse", "62824", 6).
+staff(31, "Ashley Woods", "Nurse", "48132", 6).
+staff(32, "Roy Washington", "Nurse", "74918", 5).
+staff(33, "Mrs. Brenda Jackson", "Nurse", "87139", 5).
+staff(34, "Jordan Clark", "Nurse", "46603", 5).
+staff(35, "Jeffrey Williams", "Nurse", "57829", 3).
+staff(36, "Brooke Stevenson", "Nurse", "06901", 3).
+staff(37, "Stacy Hurst", "Nurse", "64850", 3).
+staff(38, "Richard Carter", "Nurse", "53496", 3).
+staff(39, "Nicole Jones", "Nurse", "64204", 0).
+staff(40, "Amy Cooper", "Nurse", "20690", 0).
 % Groups ---------------------------------------------------
 staff_group("All").
 staff_group("All", 1).

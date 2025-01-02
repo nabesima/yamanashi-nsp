@@ -1,22 +1,22 @@
 % Staffs ---------------------------------------------------
-staff(1, "Debra Davies", "Chief Nurse", "06087", 0).
-staff(2, "Ronald Thomas", "Deputy Chief Nurse", "86833", 5).
-staff(3, "David Barrett", "Deputy Chief Nurse", "61228", 5).
-staff(4, "Monique Smith", "Nurse", "51404", 5).
-staff(5, "Mr. James Mack", "Nurse", "13618", 5).
-staff(6, "Dr. Crystal Fuller", "Nurse", "67083", 5).
-staff(7, "Lisa Spencer", "Nurse", "50354", 2).
-staff(8, "Laurie Jones", "Nurse", "67096", 2).
-staff(9, "Thomas Hart", "Nurse", "14009", 5).
-staff(10, "Elizabeth Crawford", "Nurse", "53598", 2).
-staff(11, "Vanessa Jackson", "Nurse", "30297", 3).
-staff(12, "Mary Hamilton", "Nurse", "69025", 0).
-staff(13, "Carrie Brown", "Nurse", "24774", 3).
-staff(14, "Maria Cummings", "Nurse", "51802", 3).
-staff(15, "Elizabeth Dawson", "Nurse", "98772", 3).
-staff(16, "Ruben Cortez", "Nurse", "74379", 3).
-staff(17, "Nicholas Lee", "Nurse", "23085", 3).
-staff(18, "Ryan Marsh", "Nurse", "02893", 2).
+staff(1, "Michael Cooper", "Chief Nurse", "46027", 0).
+staff(2, "Shawn Walker", "Deputy Chief Nurse", "29707", 5).
+staff(3, "Christopher Osborne DDS", "Deputy Chief Nurse", "75410", 5).
+staff(4, "John Brown", "Nurse", "15157", 5).
+staff(5, "David Nash", "Nurse", "18949", 5).
+staff(6, "Justin Miller", "Nurse", "98791", 5).
+staff(7, "Bridget Baker", "Nurse", "48301", 2).
+staff(8, "Matthew Holland", "Nurse", "33663", 2).
+staff(9, "Kerry Cruz", "Nurse", "49527", 5).
+staff(10, "Justin Navarro", "Nurse", "12798", 2).
+staff(11, "Annette Foley", "Nurse", "29225", 3).
+staff(12, "Mary Savage", "Nurse", "45892", 0).
+staff(13, "Eric Singleton", "Nurse", "28911", 3).
+staff(14, "Danielle Ross", "Nurse", "44128", 3).
+staff(15, "Desiree Rogers", "Nurse", "26232", 3).
+staff(16, "Brian Jones", "Nurse", "26086", 3).
+staff(17, "Christopher Cummings", "Nurse", "96763", 3).
+staff(18, "Joseph Jones", "Nurse", "21858", 2).
 % Groups ---------------------------------------------------
 staff_group("All").
 staff_group("All", 2).

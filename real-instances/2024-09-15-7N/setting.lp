@@ -1,33 +1,33 @@
 % Staffs ---------------------------------------------------
-staff(1, "Kurt Lopez", "Deputy Chief Nurse", "81422", 0).
-staff(2, "Judy Davis", "Deputy Chief Nurse", "02744", 0).
-staff(3, "Timothy Harmon", "Deputy Chief Nurse", "07659", 0).
-staff(4, "Courtney Miller", "Nurse", "48512", 0).
-staff(5, "Jamie Reed", "Chief Nurse", "15925", 0).
-staff(6, "John Williams", "Deputy Chief Nurse", "56788", 0).
-staff(7, "Kevin Sanford", "Nurse", "26671", 0).
-staff(8, "Matthew Wilcox", "Chief Nurse", "56968", 0).
-staff(9, "Teresa Caldwell", "Deputy Chief Nurse", "09852", 0).
-staff(10, "Brian Nelson", "Nurse", "36937", 0).
-staff(11, "Julie Scott", "Chief Nurse", "88539", 0).
-staff(12, "Amanda Cruz", "Deputy Chief Nurse", "15841", 0).
-staff(13, "James Wright", "Nurse", "05436", 0).
-staff(14, "Samantha Mathews", "Chief Nurse", "01483", 0).
-staff(15, "Eric Morales", "Deputy Chief Nurse", "95109", 0).
-staff(16, "Julie Gonzalez", "Nurse", "44797", 0).
-staff(17, "Sarah Gomez", "Chief Nurse", "68119", 0).
-staff(18, "Eric Suarez", "Deputy Chief Nurse", "55257", 0).
-staff(19, "Teresa Santos", "Nurse", "17792", 0).
-staff(20, "Adam Douglas", "Chief Nurse", "41390", 0).
-staff(21, "Trevor Coleman", "Deputy Chief Nurse", "47049", 0).
-staff(22, "Aaron Williams", "Nurse", "17222", 0).
-staff(23, "Emma Ford", "Chief Nurse", "30537", 0).
-staff(24, "Barry Harris", "Deputy Chief Nurse", "37159", 0).
-staff(25, "Amanda Fox", "Nurse", "09022", 0).
-staff(26, "Dominique Lane", "Chief Nurse", "39873", 0).
-staff(27, "Dana Martin", "Deputy Chief Nurse", "40279", 0).
-staff(28, "Paul Jones", "Nurse", "75528", 0).
-staff(29, "Gerald Miranda", "Chief Nurse", "25572", 0).
+staff(1, "Brandon Mcintosh", "Deputy Chief Nurse", "07012", 0).
+staff(2, "John Smith", "Deputy Chief Nurse", "74102", 0).
+staff(3, "John Price", "Deputy Chief Nurse", "76205", 0).
+staff(4, "Joseph Flores", "Nurse", "45275", 0).
+staff(5, "Wendy Bryant", "Chief Nurse", "06502", 0).
+staff(6, "Logan Torres", "Deputy Chief Nurse", "33615", 0).
+staff(7, "Travis Bates", "Nurse", "34181", 0).
+staff(8, "Katherine Young", "Chief Nurse", "09549", 0).
+staff(9, "Ian Moore", "Deputy Chief Nurse", "74243", 0).
+staff(10, "Jeffrey Adams", "Nurse", "01022", 0).
+staff(11, "Lisa Haney DVM", "Chief Nurse", "06690", 0).
+staff(12, "Tara Randall", "Deputy Chief Nurse", "01409", 0).
+staff(13, "Shaun Frye", "Nurse", "79663", 0).
+staff(14, "Nicolas Ross", "Chief Nurse", "21165", 0).
+staff(15, "Andrew Bowman", "Deputy Chief Nurse", "97576", 0).
+staff(16, "Johnny Gonzalez", "Nurse", "72055", 0).
+staff(17, "Barry Barton", "Chief Nurse", "09047", 0).
+staff(18, "Isaac Yoder", "Deputy Chief Nurse", "25490", 0).
+staff(19, "Joseph Aguilar DDS", "Nurse", "59706", 0).
+staff(20, "Tracey Morgan", "Chief Nurse", "42687", 0).
+staff(21, "Chad Gutierrez", "Deputy Chief Nurse", "31053", 0).
+staff(22, "Gregory Gibson", "Nurse", "03367", 0).
+staff(23, "Kyle Flores", "Chief Nurse", "35864", 0).
+staff(24, "Karen Harvey", "Deputy Chief Nurse", "07414", 0).
+staff(25, "Alyssa Walters", "Nurse", "23759", 0).
+staff(26, "Jeff Brown", "Chief Nurse", "91934", 0).
+staff(27, "Diane Heath", "Deputy Chief Nurse", "94466", 0).
+staff(28, "Lauren Jones", "Nurse", "29959", 0).
+staff(29, "Shannon Olson", "Chief Nurse", "93046", 0).
 % Groups ---------------------------------------------------
 staff_group("All").
 staff_group("All", 1).
