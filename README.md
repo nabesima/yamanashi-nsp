@@ -170,15 +170,20 @@ Artificially generated NSP instances for benchmarking and testing. These instanc
 
 ## Using `nspsolver.py`
 
-`nspsolver.py` is a script for solving NSP instances.
-If the given NSP instance is unsatisfiable, `nspsolver.py` automatically relaxes hard constraints into soft constraints and solves the problem again (internally by defining the predicate `soften_hard` and retrying).
-The script runs Clingo internally. Any options not directly supported by `nspsolver.py` are passed to Clingo. For example, specifying the -t 4 option enables solving with four threads in parallel.
+`nspsolver.py` is a script for solving NSP instances. If the given NSP instance
+is unsatisfiable, `nspsolver.py` automatically relaxes hard constraints into
+soft constraints and solves the problem again (internally by defining the
+predicate `soften_hard` and retrying). The script runs Clingo internally. Any
+options not directly supported by `nspsolver.py` are passed to Clingo. For
+example, specifying the -t 4 option enables solving with four threads in
+parallel.
 
 **Typical Usage**
 ```shell
 ./nspsolver.py nsp.lp /path/to/nsp-instance.lp -s
 ```
-`nsp.lp` is the ASP encoding for NSP. The `-s` option generates and displays a shift table each time a model is found.
+`nsp.lp` is the ASP encoding for NSP. The `-s` option generates and displays a
+shift table each time a model is found.
 
 Below is an example of the shift table output.
 
@@ -191,17 +196,21 @@ Below is an example of the shift table output.
 
 **Top-Right Section**
 - `#shifts`: The number of assignments for each shift during the current month.
-- `#wkndOffs`: The number of weekend days off, categorized as `P` (past), `C` (current month), and `T` (total).
+- `#wkndOffs`: The number of weekend days off, categorized as `P` (past), `C`
+  (current month), and `T` (total).
 - `#phOffs`: The number of public holiday days off assigned.
 - `#cnscOffs`: The number of consecutive weekly rest days assigned.
 
 **Center-Left Section**
 - The first column lists the nurse groups: `All`, `Expert`, and `Medium`.
 - The adjacent column represents shifts (or groups of shifts).
-- Example: `All D #S` indicates the number of staff members from the `All` group assigned to shift `D`. If it represents a point instead of a quantity, it is denoted as `#P`.
+- Example: `All D #S` indicates the number of staff members from the `All` group
+  assigned to shift `D`. If it represents a point instead of a quantity, it is
+  denoted as `#P`.
 
 **Penalties**
-- Penalties are displayed in order of priority, starting from the highest. The following abbreviations are used:
+- Penalties are displayed in order of priority, starting from the highest. The
+  following abbreviations are used:
     - `P`: Priority
     - `W`: Weight
     - `Type`: Indicates whether the penalty is soft or hard
@@ -211,16 +220,29 @@ Below is an example of the shift table output.
 
 ### Displaying Models on Demand
 
-If the `nspsolver.py` script outputs many models, the output may scroll quickly, making it difficult to follow. The `nspsolver.py` script writes each model to the file `found-model.lp` (or a file specified with the `-o` option) as it is found, with only the latest model being retained. The model file can be displayed using the `showmodel.py` script. This allows you to run `nspsolver.py` on one terminal and use another terminal to monitor the latest model using `showmodel.py`.
+If the `nspsolver.py` script outputs many models, the output may scroll quickly,
+making it difficult to follow. The `nspsolver.py` script writes each model to
+the file `found-model.lp` (or a file specified with the `-o` option) as it is
+found, with only the latest model being retained. The model file can be
+displayed using the `showmodel.py` script. This allows you to run `nspsolver.py`
+on one terminal and use another terminal to monitor the latest model using
+`showmodel.py`.
 ```shell
 ./nspsolver.py nsp.lp /path/to/nsp-instance.lp  # Run in one terminal
 ./showmodel.py                                  # Run in another terminal
 ```
-To view models as Clingo finds them, use the `-f` option of `showmodel.py`. This checks the model file for updates and displays the latest model every second (the check interval can be adjusted by specifying an argument for the -f option).
+To view models as Clingo finds them, use the `-f` option of `showmodel.py`. This
+checks the model file for updates and displays the latest model every second
+(the check interval can be adjusted by specifying an argument for the -f
+option).
 
 ### Resuming Search After Interruption
 
-Even if the execution of `nsp-solver.py` is interrupted (e.g., by pressing `Ctrl+C`), you can effectively resume the search using the `-p` option. This option prioritizes and reproduces the assignments of the assigned predicates contained in the `found-model.lp` file, enabling you to continue the search to some extent.
+Even if the execution of `nsp-solver.py` is interrupted (e.g., by pressing
+`Ctrl+C`), you can effectively resume the search using the `-p` option. This
+option prioritizes and reproduces the assignments of the assigned predicates
+contained in the `found-model.lp` file, enabling you to continue the search to
+some extent.
 
 
 ```shell
@@ -234,20 +256,49 @@ Ctrl+C detected! Stopping Clingo...
 For users familiar with Clingo, you can directly solve an NSP instance as follows:
 
 ```shell
-clingo nsp-cli.lp /path/to/nsp-instance.lp > nsp.log
+clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
 ```
 
-`nsp-cli.lp` is similar to `nsp.lp`, but includes Python scripts (`nsp-prepro-helper.lp`) for pre-processing and introduces the constant `soften_hard_on` to control the relaxation of hard constraints. By default, hard constraints are enabled. If you specify `-c soften_hard_on=1` in Clingo's command line arguments, the hard constraints will be relaxed into soft constraints.
+`cli.lp` includes Python scripts (`nsp-prepro-helper.lp`) for pre-processing and
+introduces the constant `soften_hard_on` to control the relaxation of hard
+constraints. By default, hard constraints are enabled. If you specify `-c
+soften_hard_on=1` in Clingo's command line arguments, the hard constraints will
+be relaxed into soft constraints.
 
 ```shell
-clingo nsp-cli.lp /path/to/nsp-instance.lp -c soften_hard_on=1 > nsp.log
+clingo nsp.lp cli.lp /path/to/nsp-instance.lp -c soften_hard_on=1 > nsp.log
 ```
 
-`showmodel.py` constructs and displays a shift table from the last model in the log file.
+`showmodel.py` constructs and displays a shift table from the last model in the
+log file.
 
 ```shell
 ./showmodel.py nsp.log
 ```
+To view models as Clingo finds them, use the -f option of showmodel.py. This
+checks the model file for updates and displays the latest model every second
+(the check interval can be adjusted by specifying an argument for the -f
+option).
+
+### Resuming Search After Interruption
+
+Even if the execution of Clingo is interrupted (e.g., by pressing `Ctrl+C`), you
+can effectively resume the search by reusing the last model. The script
+`reusemodel.py` extracts the last model from the log file and saves it as
+`reused-model.lp`. Afterward, you can use Clingo with the `reused-model.lp` file
+and the `--heuristic=Domain` option. This setup prioritizes and reproduces the
+assigned predicates contained in the `reused-model.lp` file, allowing you to
+continue the search to some extent.
+
+```shell
+clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
+[Ctrl+C pressed]
+
+./reusemodel.py nsp.log -o reused-model.lp
+clingo nsp.lp cli.lp /path/to/nsp-instance.lp reused-model.lp --heuristic=Domain > nsp.log
+```
+
+
 
 # NSP Instance Generation
 

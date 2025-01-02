@@ -26,7 +26,7 @@ def signal_handler(sig, frame):
         condition.notify_all()
 
 class NSPSolver:
-    def __init__(self, files=None, output=None, clingo_options=None, show_model=None, show_table=False, verbose=0, stats=0):
+    def __init__(self, files=None, output=None, clingo_options=None, soften_hard=False, show_model=None, show_table=False, verbose=0, stats=0):
         """
         Initialize the NSPSolver
         :param files: List of logic program files
@@ -36,13 +36,13 @@ class NSPSolver:
         self.files = files if files else []
         self.output = output
         self.clingo_options = clingo_options if clingo_options else []
+        self.soften_hard = soften_hard
         self.show_model = show_model
         self.show_table = show_table
         self.verbose = verbose
         self.stats = stats
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
-        self.soften_hard = False
 
     def load_programs(self):
         """
@@ -67,7 +67,7 @@ class NSPSolver:
         # Solve the program
         disable_soften_hard = [(clingo.Function("soften_hard"), False)]  # Hard constraints are enabled
         enable_soften_hard  = [(clingo.Function("soften_hard"), True)]   # Hard constraints are relaxed to soft
-        assumptions = disable_soften_hard
+        assumptions = enable_soften_hard if self.soften_hard else disable_soften_hard
         while True:
             with self.control.solve(assumptions=assumptions, on_model=self.on_model, on_finish=self.on_finish, async_=True) as handle:
                 with condition:
@@ -215,11 +215,15 @@ class NSPContext:
         return clingo.Number(n if n > m else m)
 
 def make_prioritized_model(in_file: str, out_file: str):
+    soften_hard = False
     atoms = read_model(in_file)
     with open(out_file, 'w') as out:
         for atom in atoms:
             if atom.match("assigned", 2) or atom.match("assigned", 3):
                 print(f'legacy({atom}).', file=out)
+            elif atom.match("soften_hard", 0):
+                soften_hard = True
+    return soften_hard
 
 def main():
     # Parse command-line arguments
@@ -266,8 +270,9 @@ def main():
 
     # If a prioritized model file is specified, extract the assigned predicates from the model
     # and prioritize them.
+    soften_hard = False
     if args.prioritize:
-        make_prioritized_model(args.prioritize, "prioritized-model.lp")
+        soften_hard = make_prioritized_model(args.prioritize, "prioritized-model.lp")
         args.files.append("prioritized-model.lp")
         clingo_args.append("--heuristic=Domain")
 
@@ -287,6 +292,7 @@ def main():
         files=args.files,
         output=args.output,
         clingo_options=clingo_args,
+        soften_hard=soften_hard,
         show_model=show_model,
         show_table=args.s,
         verbose=args.verbose,
