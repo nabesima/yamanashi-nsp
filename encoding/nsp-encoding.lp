@@ -200,7 +200,7 @@ violation(hard, forbidden_pattern(N, BD, PID)) :-
     date((BD;ED)).
 
 %----------------------------------------------------------------------
-% Constraints on next shifts
+% Constraints on inter-shifts
 %----------------------------------------------------------------------
 
 % Assuming that next_shift(hard, S, _) and next_shift(soft, S, _) are mutually exclusive
@@ -261,7 +261,7 @@ isolated_work_day(N, D+1) :-
     rest_day(N, D+0).
 
 % Penalty for isolated workdays
-        violation(soft, isolated_work_day(N, D)) :-
+violation(soft, isolated_work_day(N, D)) :-
     isolated_work_day(N, D).
 
 %----------------------------------------------------------------------

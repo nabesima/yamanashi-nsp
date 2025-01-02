@@ -1,0 +1,5 @@
+clingo>=5.7.1
+colorama>=0.4.6
+Faker>=22.0.0
+jpholiday>=0.1.10
+pandas>=2.1.4+dfsg

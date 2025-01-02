@@ -1,11 +1,13 @@
 # An ASP-Based NSP Solver for Yamanashi Instances
 
-This repository offers encoding and instances for the Nurse Scheduling Problem
-(NSP) using Answer Set Programming (ASP). The instances are categorized into two
-types: *real-world* and *artificial*. The real-world instances are anonymized
-datasets derived from the nurse scheduling challenges at Yamanashi University
-Hospital. The artificial instances are designed for testing and benchmarking
-purposes and include scripts for generating customizable problem scenarios.
+This repository provides encodings and a solver for the Nurse Scheduling Problem
+(NSP) at Yamanashi University Hospital, based on Answer Set Programming (ASP).
+The repository includes two types of instances: real-world and artificial.
+
+- The real-world instances are anonymized datasets derived from the nurse
+  scheduling challenges faced at Yamanashi University Hospital.
+- The artificial instances are designed for testing and benchmarking purposes
+  and include scripts for generating customizable problem scenarios.
 
 ## Requirements
 
@@ -23,11 +25,10 @@ To use this solver, ensure the following dependencies are installed:
 
 ## Real Instances
 
-The nurse scheduling problem at Yamanashi University Hospital involves
-determining 28-day shift schedules for each nurse. The shifts include 8 types of
-work shifts, 2 types of rest shifts, 3 types of business shifts, and 10 types of
-leave shifts. These are summarized in the table below:
-
+The nurse scheduling problem at Yamanashi University Hospital is to determe
+28-day shift schedules for each nurse.  The shifts are categorized into four
+types: 8 work shifts, 2 rest shifts, 3 business shifts, and 10 leave shifts. The
+details are summarized in the table below:
 
 | Work shifts | Description   | Rest shifts | Description |Business shifts | Description |Leave shifts | Description |
 | ---: | --- | ---: | --- | ---: | --- | ---: | --- |
@@ -42,34 +43,34 @@ leave shifts. These are summarized in the table below:
 |        |                    |        |                  |        |                     | **VL** | Volunteer leave    |
 |        |                    |        |                  |        |                     | **WL** | Wedding leave      |
 
-Among these, business shifts and leave shifts are assigned based on nurses'
-requests, while **work shifts** and **rest shifts** are the primary targets for
-automatic schedule generation.
+**Work shifts** and **rest shifts** are the primary focus of the automatic
+schedule generation process, while business shifts and leave shifts are assigned
+based on nurses' requests.
 
-The [/real-instances](/real-instances) directory contains Nurse Scheduling
-Problem (NSP) instances from various nursing departments at Yamanashi University
-Hospital. All instances have been anonymized. The file names for these NSP
-instances follow the format `YYYY-MM-DD-XXX.lp`, where `YYYY-MM-DD` represents
-the start date of the schedule, and `XXX` is an abbreviation for the department
-name.
+The [/real-instances](/real-instances) directory contains anonymized datasets
+derived from various nursing departments at Yamanashi University Hospital. The
+file names for these NSP instances follow the format `YYYY-MM-DD-XXX.lp`, where
+- `YYYY-MM-DD` represents the start date of the schedule.
+- `XXX` is an abbreviation for the department name.
 
 These files are designed to include the following files located in the
 `YYYY-MM-DD-XXX` directory and the [/encoding](/encoding) directory.
 
 - `date.lp`
-    - This file defines the dates used in the shift schedule. The shift table
-      spans 28 days (4 weeks) and includes one week from the end of the previous
-      month and one week from the beginning of the following month to ensure
-      consistency with adjacent shifts. Additionally, past dates are included to
-      promote fairness in shift burden.q
+    - This file defines the dates used in NSP. The shift table spans 28 days (4
+      weeks) and includes one week from the end of the previous month and one
+      week from the beginning of the following month to ensure consistency with
+      adjacent shifts. Additionally, past dates are included to promote fairness
+      in shift burden.
 
     - Dates are provided in two formats: Gregorian calendar dates as integers in
       the `YYYYMMDD` format and relative values, where the start date of the
       schedule is represented as 0.
 
     - Five predicates (base_date, prev_date, date, next_date, past_date) are
-      used to represent dates. Their relationships are illustrated below. The
-      starting date of past_date depends on the specific NSP instance.
+      used to represent dates. Their relationships are illustrated below:
+        - Thestarting date of date is YYYY-MM-DD.
+        - The starting date of past_date depends on the specific NSP instance.
 
     ```mermaid
     gantt
@@ -101,9 +102,10 @@ These files are designed to include the following files located in the
     functionality of the system used at the university hospital. However, in
     practice, multiple requests can exist, such as `pos_request(N, D, S1), ...,
     pos_request(N, D, Sn)`, and one of these requested shifts must be assigned.
-    Conversely, dispreferred shifts can be represented using the neg_request(N,
-    D, S) predicate, which can also be declared multiple times. These predicates
-    indicate that none of the specified dispreferred shifts should be assigned.
+    Conversely, dispreferred shifts can be represented using the `neg_request(N,
+    D, S)` predicate, which can also be declared multiple times. These
+    predicates indicate that none of the specified dispreferred shifts should be
+    assigned.
 
 - `setting.lp`
   - This file defines various settings for the department, including:
@@ -127,7 +129,7 @@ These files are designed to include the following files located in the
         before a night shift).
       - Lists forbidden shift patterns.
       - Includes upper and lower bounds for shift pattern assignments for each
-        group on a daily basis.
+        group.
   - Constraints that define upper and lower bounds are often expressed using two
     types: hard bounds and soft bounds. Hard bounds represent ranges that must
     be strictly satisfied, while soft bounds represent ranges that should
@@ -142,8 +144,8 @@ These files are designed to include the following files located in the
 
 - `/encoding/nsp-XXX.lp`
   - This file defines department-specific constraints as well as the priorities
-    of both department-specific and non-department-specific constraints. In our
-    NSP, the objective function minimizes the weighted violations of soft
+    of both department-specific and non-department-specific constraints.
+  - In our NSP, the objective function minimizes the weighted violations of soft
     constraints. The minimization is performed in lexicographic order based on
     the priority levels.
   - Soft constraint priorities range from 1 to 9. If the NSP is unsatisfiable,
@@ -151,6 +153,12 @@ These files are designed to include the following files located in the
     case, the priority of the relaxed hard constraints is increased by 9 from
     the corresponding soft constraint priority, resulting in hard constraint
     priorities ranging from 10 to 19.
+
+Real-world instances tend to be unsatisfiable. This is primarily because shift
+assignments based on nurses' requests (`pos_request/3`) can sometimes violate
+hard constraints. For example, `pos_request/3` may require six consecutive
+workdays, even though the limit is five. As a result, it is often necessary to
+relax hard constraints to generate a shift schedules.
 
 ## Artificial Instances
 
