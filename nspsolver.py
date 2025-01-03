@@ -214,7 +214,7 @@ class NSPContext:
         m = m.number
         return clingo.Number(n if n > m else m)
 
-def make_prioritized_model(in_file: str, out_file: str):
+def make_legacy_model(in_file: str, out_file: str):
     soften_hard = False
     atoms = read_model(in_file)
     with open(out_file, 'w') as out:
@@ -268,12 +268,12 @@ def main():
     # Set color mode
     colorama.init(strip=args.mono)
 
-    # If a prioritized model file is specified, extract the assigned predicates from the model
+    # If a legacy model file is specified, extract the assigned predicates from the model
     # and prioritize them.
     soften_hard = False
     if args.prioritize:
-        soften_hard = make_prioritized_model(args.prioritize, "prioritized-model.lp")
-        args.files.append("prioritized-model.lp")
+        soften_hard = make_legacy_model(args.prioritize, "legacy-model.lp")
+        args.files.append("legacy-model.lp")
         clingo_args.append("--heuristic=Domain")
 
     # Add signal hander

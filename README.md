@@ -164,6 +164,18 @@ relax hard constraints to generate a shift schedules.
 
 *Under construction*
 
+The script generates NSP instances based on different combinations of the following parameters:
+- **Number of Nurses:** 5, 10, 20, 30, 40
+- **Scheduling Days:** 7, 14, 28
+- **Staff Request Rate:** 0.00, 0.10
+- **Recommended Pairs:**
+  - For nurses < 20: 0 pairs
+  - For nurses ≥ 20: 0 and 2 pairs
+- **Forbidden Pairs:**
+  - For nurses < 20: 0 pairs
+  - For nurses ≥ 20: 0 and 2 pairs
+
+
 Artificially generated NSP instances for benchmarking and testing. These instances are generated using pre-defined rules and random data.
 
 # NSP Solving
@@ -284,18 +296,18 @@ option).
 
 Even if the execution of Clingo is interrupted (e.g., by pressing `Ctrl+C`), you
 can effectively resume the search by reusing the last model. The script
-`reusemodel.py` extracts the last model from the log file and saves it as
-`reused-model.lp`. Afterward, you can use Clingo with the `reused-model.lp` file
+`make-legacy-model.py` extracts the last model from the log file and saves it as
+`legacy-model.lp`. Afterward, you can use Clingo with the `legacy-model.lp` file
 and the `--heuristic=Domain` option. This setup prioritizes and reproduces the
-assigned predicates contained in the `reused-model.lp` file, allowing you to
+assigned predicates contained in the `legacy-model.lp` file, allowing you to
 continue the search to some extent.
 
 ```shell
 clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
 [Ctrl+C pressed]
 
-./reusemodel.py nsp.log -o reused-model.lp
-clingo nsp.lp cli.lp /path/to/nsp-instance.lp reused-model.lp --heuristic=Domain > nsp.log
+./make-legacy-model.py nsp.log -o legacy-model.lp
+clingo nsp.lp cli.lp /path/to/nsp-instance.lp legacy-model.lp --heuristic=Domain > nsp.log
 ```
 
 # NSP Encoding
