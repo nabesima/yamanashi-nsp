@@ -1,8 +1,10 @@
 .vscode
 __pycache__
-tmp-*.xlsx
-param-source
-TODO.md
 /old
+/param-source
+TODO.md
+# temporary files
 found-model.lp
-reused-model.lp
+legacy-model.lp
+gen-instances/tmp-past
+gen-instances/tmp-curr

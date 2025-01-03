@@ -3,9 +3,9 @@ import argparse
 from showmodel import read_model
 
 def main():
-    parser = argparse.ArgumentParser(description="Read a model from a file and display the shift table.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="reads a model file, extracts shift assignments, and outputs them in legacy format.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("file", nargs="?", default="found-model.lp", help="Model file to read")
-    parser.add_argument("-o", "--output", type=str, default="reused-model.lp", help="Output file for models")
+    parser.add_argument("-o", "--output", type=str, default="legacy-model.lp", help="Output file for models")
 
     args = parser.parse_args()
 
