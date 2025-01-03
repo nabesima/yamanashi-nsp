@@ -1,7 +1,8 @@
 .vscode
 __pycache__
-found-model.lp
 tmp-*.xlsx
 param-source
 TODO.md
 /old
+found-model.lp
+reused-model.lp
