@@ -423,6 +423,7 @@ class NSP:
         self.set_default_prev_next_shifts()
         self.set_default_recommended_pairs(recommended_pairs)
         self.set_default_forbidden_pairs(forbidden_pairs)
+        self.set_default_priority()
 
     def set_default_staffs(self, num):
 
@@ -535,7 +536,9 @@ class NSP:
                     break
 
     def set_default_pattern_bounds(self):
-        self.add_pattern_bound("hard_lb", ["WR", "WR"], 2)
+        wrwr = round(self.dates.width / 14)
+        if wrwr > 0:
+            self.add_pattern_bound("hard_lb", ["WR", "WR"], wrwr)
         self.add_pattern_bound("soft_ub", ["LD", "D"],  1)
         self.add_pattern_bound("soft_ub", ["LM", "D"],  0)
         self.add_pattern_bound("soft_ub", ["LM", "LD"], 0)
@@ -575,6 +578,34 @@ class NSP:
         for _ in range(0, num_pairs):
             ns = random.sample(self.staffs, 2)
             self.add_forbidden_pair(ns[0], ns[1])
+
+    def set_default_priority(self):
+        self.priorities = '''
+% Nurse pos/neg requests are hard constraints but given high priority for relaxation
+dep_priority(pos_request(N, D), 5) :- pos_request(N, D).
+dep_priority(neg_request(N, D), 5) :- neg_request(N, D).
+
+% Prioritize next/prev shift rules
+dep_priority(next_shift(N, D, S), 4) :-
+    staff(N), base_date(D), next_shift(_, S, _).
+dep_priority(prev_shift(N, D, S), 4) :-
+    staff(N), base_date(D), prev_shift(_, S, _).
+% Prioritize UB and LB for shift patterns
+dep_priority(pattern_lb(N, PID), 4) :-
+    staff(N), staff_group(NG, N), pattern_lb(_, PID, NG, _).
+dep_priority(pattern_ub(N, PID), 4) :-
+    staff(N), staff_group(NG, N), pattern_ub(_, PID, NG, _).
+
+% Prioritize vertical and horizontal constraints
+dep_priority(staff_lb(NG, SG, D), 2) :-
+    staff_lb(_, NG, SG, D, _).
+dep_priority(staff_ub(NG, SG, D), 2) :-
+    staff_ub(_, NG, SG, D, _).
+dep_priority(shift_lb(N, SG), 2) :-
+    shift_lb(_, N, SG, _).
+dep_priority(shift_ub(N, SG), 2) :-
+    shift_ub(_, N, SG, _).
+'''
 
     def to_asp(self, out):
         print("% Staffs -----------------------------------------", file=out)
@@ -621,11 +652,13 @@ class NSP:
             r.to_asp(out)
         for r in self.staff_def_requests:
             r.to_asp(out)
-        print("% Pairs --------------------------------------", file=out)
+        print("% Pairs ------------------------------------------", file=out)
         for p in self.recommended_pairs:
             p.to_asp(out)
         for p in self.forbidden_pairs:
             p.to_asp(out)
+        print("% Priorities -------------------------------------", file=out)
+        print(self.priorities, file=out)
 
 
 def main():
@@ -638,6 +671,7 @@ def main():
     parser.add_argument("-dr", "--default-requests", type=int, default=0, help="Specify the number of default shift requests")
     parser.add_argument("-rp", "--recommended-pairs", type=int, default=0, help="Specify the number of recommended night shift pairs")
     parser.add_argument("-fp", "--forbidden-pairs", type=int, default=0, help="Specify the number of forbidden night shift pairs")
+    parser.add_argument("--schedule-offset", type=int, default=0, help="Generate the schedule a specified number of schedules ahead or behind from the start date")
     parser.add_argument("--seed", type=int, default=None, help="Set the random seed")
     args = parser.parse_args()
 
@@ -645,12 +679,17 @@ def main():
         fake.seed_instance(args.seed)
         random.seed(args.seed)
 
+    # Adjust start date based on schedule offset
+    start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+    start_date += timedelta(days=args.schedule_offset * args.num_days)
+    start_date = start_date.strftime('%Y-%m-%d')
+
     # Generate a NSP instance
     nsp_instance = NSP()
     nsp_instance.set_default_setting(
         args.num_nurses,
         args.num_days,
-        args.start_date,
+        start_date,
         args.consecutive_work_days,
         args.staff_request,
         args.default_requests,
