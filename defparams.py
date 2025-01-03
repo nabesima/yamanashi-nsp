@@ -33,7 +33,7 @@ DEF_STAFF_BOUNDS = {
                 "hard_lb": 0.1,
                 "soft_ub": 0.15,
             }
-        },        
+        },
     },
     "Expert": {
         "LD,SE,SN": {
@@ -58,7 +58,7 @@ DEF_STAFF_BOUNDS = {
             "Weekday,Weekend,Holiday": {
                 "soft_lb": 0.2,
                 "soft_ub": 0.2,
-                "hardt_ub": 0.2,
+                "hard_ub": 0.2,
             },
         },
     },
