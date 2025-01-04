@@ -87,6 +87,9 @@ non_work_day(N, D) :- leave_day(N, D).
 % soften_hard is controlled by the nspsolver.
 { soften_hard }.
 
+% Suppresses warnings when there are no violation constraints
+violation(dummy, dummy).
+
 %----------------------------------------------------------------------
 % Penalty
 %----------------------------------------------------------------------
@@ -107,6 +110,9 @@ penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
 reward(CAUSE, W, P) :-
     achievement(CAUSE, W),
     priority(CAUSE, P).
+
+% Suppresses warnings when there are no achievement constraints
+achievement(dummy, dummy).
 
 %----------------------------------------------------------------------
 % Priority of penalty and reward
