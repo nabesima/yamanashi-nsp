@@ -80,10 +80,12 @@ These files are designed to include the following files located in the
       the `YYYYMMDD` format and relative values, where the start date of the
       schedule is represented as 0.
 
-    - Five predicates (base_date, prev_date, date, next_date, past_date) are
-      used to represent dates. Their relationships are illustrated below:
-        - Thestarting date of date is YYYY-MM-DD.
-        - The starting date of past_date depends on the specific NSP instance.
+    - Five predicates (`base_date`, `prev_date`, `date`, `next_date`,
+      `past_date`) are used to represent dates. Their relationships are
+      illustrated below:
+        - The starting date of the `date` predicates is YYYY-MM-DD.
+        - The starting date of the `past_date` predicates depends on the
+          specific NSP instance.
 
     ```mermaid
     gantt
@@ -107,10 +109,10 @@ These files are designed to include the following files located in the
     requirements of the system used at the university hospital, requested shifts
     are defined using the `shift_data/4` predicate. These are converted into
     `pos_request(N, D, S)` by [encoding/nsp-prepro.lp](encoding/nsp-prepro.lp),
-    where N denotes a nurse, D a day, and S a shift. In our NSP, requested
+    where `N` denotes a nurse, `D` a day, and `S` a shift. In our NSP, requested
     shifts are treated as *hard constraints*.
 
-  - In the real instances within this repository, at most one pos_request is
+  - In the real instances within this repository, at most one `pos_request` is
     defined per nurse per day. This limitation is due to the export
     functionality of the system used at the university hospital. However, in
     practice, multiple requests can exist, such as `pos_request(N, D, S1), ...,
@@ -144,8 +146,8 @@ These files are designed to include the following files located in the
       - Includes upper and lower bounds for shift pattern assignments for each
         group.
   - Constraints that define upper and lower bounds are often expressed using two
-    types: hard bounds and soft bounds. Hard bounds represent ranges that must
-    be strictly satisfied, while soft bounds represent ranges that should
+    types: *hard bounds* and *soft bounds*. Hard bounds represent ranges that
+    must be strictly satisfied, while soft bounds represent ranges that should
     ideally be satisfied as much as possible. Typically, the relationship is as
     follows:
 
@@ -175,10 +177,11 @@ relax hard constraints to generate a shift schedules.
 
 ## Artificial Instances
 
-The artificial instances are designed to reflect typical constraints observed in
-the real-world instances while varying the number of nurses and the scheduling
-period. This variation allows for a range of problem sizes, from smaller test
-cases to instances comparable in size to real datasets.
+The artificial instances, located in the [`/gen-instances`](/gen-instances/) directory, are designed
+to reflect typical constraints observed in real-world cases from our university
+hospital while varying both the number of nurses and the scheduling period. This
+variation allows for a range of problem sizes, from smaller test cases to
+instances comparable in size to real datasets.
 
 All artificial instances have a start date of **2025-09-08**. This date was
 chosen specifically because public holidays fall during the second and third
@@ -434,7 +437,7 @@ function.
 
 ### How to Use These Files
 
-The file **[`nsp.lp`](./nsp.lp)*** includes all constraints for NSP. The file
+The file **[`nsp.lp`](./nsp.lp)** includes all constraints for NSP. The file
 **[`nsp-basic-only.lp`](./nsp-basic-only.lp)** includes only the core
 constraints from [`nsp-01-basic.lp`](./encoding/nsp-01-basic.lp) along with
 preprocessing ([`nsp-prepro.lp`](./encoding/nsp-prepro.lp)) and restart
