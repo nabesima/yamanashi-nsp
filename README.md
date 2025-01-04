@@ -361,82 +361,101 @@ clingo nsp.lp cli.lp /path/to/nsp-instance.lp legacy-model.lp --heuristic=Domain
 
 # NSP Encoding
 
-The file **[`nsp.lp`](./nsp.lp)** represents the ASP encoding for the NSP. The
-ASP encoding is divided into separate files based on the types of constraints,
-and **[`nsp.lp`](./nsp.lp)** includes all of these files. Below is a list of
-these files:
+The file **[`nsp.lp`](./nsp.lp)** serves as the ASP encoding for the Nurse Scheduling Problem (NSP). It includes the following component files:
 
-- **[`nsp-basic.lp`](./encoding/nsp-basic.lp)**:
+- **[`nsp-prepro.lp`](./encoding/nsp-prepro.lp)**:
+  - Handles preprocessing tasks and prepares data before solving the NSP.
+
+- **[`nsp-restart.lp`](./encoding/nsp-restart.lp)**:
+  - Supports prioritized search to resume solving based on the last found model after an interruption.
+
+- **[`nsp-encoding.lp`](./encoding/nsp-encoding.lp)**:
+  - Further includes a modular set of constraint files, detailed below.
+
+## Modular Constraint Files
+
+The ASP encoding is divided into modular files, each focusing on a specific type
+of constraint. These files are structured to support the **individual addition**
+of constraints, enabling better control and flexibility during testing and
+evaluation.
+
+However, the file **[`nsp-01-basic.lp`](./encoding/nsp-01-basic.lp)** is always
+required as it contains the core definitions necessary for the optimization
+problem, including auxiliary predicates, output predicates, and the objective
+function.
+
+- **[`nsp-01-basic.lp`](./encoding/nsp-01-basic.lp)**
   Core constraints for NSP, including:
   - Ensures lower and upper bounds on the number of workdays.
   - Ensures lower and upper bounds on weekly rest days.
+  - Definitions for auxiliary predicates, output predicates, and the objective function.
 
-- **[`nsp-day-by-day.lp`](./encoding/nsp-day-by-day.lp)**:
+- **[`nsp-02-day-by-day.lp`](./encoding/nsp-02-day-by-day.lp)**
   Defines constraints on day-by-day shift assignments:
   - Enforces lower and upper limits on the number of shifts assigned per nurse per day.
 
-- **[`nsp-nurse-by-nurse.lp`](./encoding/nsp-nurse-by-nurse.lp)**:
+- **[`nsp-03-nurse-by-nurse.lp`](./encoding/nsp-03-nurse-by-nurse.lp)**
   Specifies constraints for shift assignments per nurse:
   - Ensures lower and upper limits on each nurse's individual workload.
 
-- **[`nsp-consecutive-days.lp`](./encoding/nsp-consecutive-days.lp)**:
+- **[`nsp-04-consecutive-days.lp`](./encoding/nsp-04-consecutive-days.lp)**
   Imposes constraints on consecutive working days:
   - Restricts specific sequences of workdays to prevent excessive workloads.
 
-- **[`nsp-requested-shifts.lp`](./encoding/nsp-requested-shifts.lp)**:
+- **[`nsp-05-requested-shifts.lp`](./encoding/nsp-05-requested-shifts.lp)**
   Handles constraints on requested shifts:
   - Satisfies nurses' preferences or mandatory shift requests.
 
-- **[`nsp-shift-patterns.lp`](./encoding/nsp-shift-patterns.lp)**:
+- **[`nsp-06-shift-patterns.lp`](./encoding/nsp-06-shift-patterns.lp)**
   Manages constraints on shift patterns:
   - Defines lower and upper limits on the number of occurrences of specific shift patterns.
   - Specifies shift patterns that are not allowed.
 
-- **[`nsp-inter-shifts.lp`](./encoding/nsp-inter-shifts.lp)**:
+- **[`nsp-07-inter-shifts.lp`](./encoding/nsp-07-inter-shifts.lp)**
   Defines constraints on inter-shift relationships:
   - Specifies and enforces allowable transitions between consecutive shifts.
 
-- **[`nsp-nurse-pairs.lp`](./encoding/nsp-nurse-pairs.lp)**:
+- **[`nsp-08-nurse-pairs.lp`](./encoding/nsp-08-nurse-pairs.lp)**
   Specifies constraints for nurse pair assignments:
   - Defines preferred nurse pairs for night shifts.
   - Specifies nurse pairs that cannot work together during night shifts.
 
-- **[`nsp-isolated-days.lp`](./encoding/nsp-isolated-days.lp)**:
+- **[`nsp-09-isolated-days.lp`](./encoding/nsp-09-isolated-days.lp)**
   Prevents isolated work days:
   - Ensures that workdays are not unnecessarily surrounded by days off.
 
-- **[`nsp-leave-with-rest.lp`](./encoding/nsp-leave-with-rest.lp)**:
+- **[`nsp-10-leave-with-rest.lp`](./encoding/nsp-10-leave-with-rest.lp)**
   Handles constraints for leave days with weekly rest:
   - Assigns weekly rest days before and/or after the requested leave period if possible.
 
-- **[`nsp-equal-distribution.lp`](./encoding/nsp-equal-distribution.lp)**:
+- **[`nsp-11-equal-distribution.lp`](./encoding/nsp-11-equal-distribution.lp)**
   Enforces constraints for equal shift distribution:
   - Balances workloads fairly among nurses to promote equity.
 
-## Stepwise NSP Encoding
+### How to Use These Files
 
-To evaluate the impact of each constraint, we provide the following stepwise NSP
-encodings. Each file incrementally includes the constraints from the previous
-steps. For example:
+The file **[`nsp.lp`](./nsp.lp)*** includes all constraints for NSP. The file
+**[`nsp-basic-only.lp`](./nsp-basic-only.lp)** includes only the core
+constraints from [`nsp-01-basic.lp`](./encoding/nsp-01-basic.lp) along with
+preprocessing ([`nsp-prepro.lp`](./encoding/nsp-prepro.lp)) and restart
+mechanisms ([`nsp-restart.lp`](./encoding/nsp-restart.lp)).
 
-- [`nsp-2-day-by-day.lp`](./nsp-2-day-by-day.lp) includes all constraints from [`nsp-1-basic.lp`](./nsp-1-basic.lp).
-- [`nsp-3-nurse-by-nurse.lp`](./nsp-3-nurse-by-nurse.lp) includes all constraints from [`nsp-2-day-by-day.lp`](./nsp-2-day-by-day.lp).
+If you want to add constraints selectively, start with
+**[`nsp-basic-only.lp`](./nsp-basic-only.lp)** and include additional constraint
+files as needed.
 
-The file [`nsp-11-equal.lp`](./nsp-11-equal.lp) is equivalent to [`nsp.lp`](./nsp.lp).
+#### Example: Adding day-by-day and nurse-by-nurse Constraints
+The following example combines the basic constraints with day-by-day and
+nurse-by-nurse constraints:
 
-| **Step** | **File Name**                                             | **Added Constraints**                                |
-|----------|----------------------------------------------------------|-----------------------------------------------------|
-| **1**    | [`nsp-1-basic.lp`](./nsp-1-basic.lp)                     | Core constraints: workdays and weekly rest bounds   |
-| **2**    | [`nsp-2-day-by-day.lp`](./nsp-2-day-by-day.lp)           | Day-by-day shift assignment bounds                  |
-| **3**    | [`nsp-3-nurse-by-nurse.lp`](./nsp-3-nurse-by-nurse.lp)   | Nurse-by-nurse workload bounds                     |
-| **4**    | [`nsp-4-consecutive.lp`](./nsp-4-consecutive.lp)         | Consecutive working day restrictions               |
-| **5**    | [`nsp-5-requested.lp`](./nsp-5-requested.lp)             | Requested shifts                                    |
-| **6**    | [`nsp-6-patterns.lp`](./nsp-6-patterns.lp)               | Shift pattern constraints                           |
-| **7**    | [`nsp-7-inter.lp`](./nsp-7-inter.lp)                     | Inter-shift relationships                           |
-| **8**    | [`nsp-8-pairs.lp`](./nsp-8-pairs.lp)                     | Nurse pair constraints                              |
-| **9**    | [`nsp-9-isolated.lp`](./nsp-9-isolated.lp)               | Prevention of isolated workdays                    |
-| **10**   | [`nsp-10-leave.lp`](./nsp-10-leave.lp)                   | Leave days with weekly rest                        |
-| **11**   | [`nsp-11-equal.lp`](./nsp-11-equal.lp)                   | Equal shift distribution                            |
+```bash
+./nspsolver.py nsp-basic-only.lp encoding/nsp-0[23]-* /path/to/nsp-instance.lp
+```
+- [`nsp-basic-only.lp`](./nsp-basic-only.lp): Core constraints only.
+- [`encoding/nsp-02-day-by-day.lp`](./encoding/nsp-02-day-by-day.lp): Adds day-by-day constraints.
+- [`encoding/nsp-03-nurse-by-nurse.lp`](encoding/nsp-03-nurse-by-nurse.lp): Adds nurse-by-nurse constraints.
+
+You can further extend this by including other modular constraints as needed.
 
 <br>
 
