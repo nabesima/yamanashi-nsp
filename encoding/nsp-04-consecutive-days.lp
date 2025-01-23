@@ -19,7 +19,7 @@ violation(T, consecutive_work_days(N, BD), UB, UB+1) :-
     full_work_period(N, BD, ED),
     work_day(N, ED+1).
 
-% A shift requiring next-day work is not assigned on the last day of a full consecutive period.
+% A shift requiring next-work-day is not assigned on the last day of a full consecutive period.
 violation(T, consecutive_work_days(N, BD), UB, UB+1) :-
     consecutive_work_ub(T, NG, UB),
     staff_group(NG, N),
