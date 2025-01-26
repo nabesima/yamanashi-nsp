@@ -12,12 +12,12 @@
 % A nurse must work at least LB days
 violation(hard, work_days_lb(N), LB, X) :-
     staff(N), work_days_bounds(N, LB, UB),
-    X = { assigned(N, D) : workable_date(N, D) },
+    X = { assigned(N, D) },
     X < LB.
 % A nurse must work at most UB days
 violation(hard, work_days_ub(N), UB, X) :-
     staff(N), work_days_bounds(N, LB, UB),
-    X = { assigned(N, D) : workable_date(N, D) },
+    X = { assigned(N, D) },
     UB < X.
 
 % assigned/2 has exactly one work shift
