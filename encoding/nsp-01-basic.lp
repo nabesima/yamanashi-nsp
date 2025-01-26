@@ -20,10 +20,6 @@ violation(hard, work_days_ub(N), UB, X) :-
     X = { assigned(N, D) : workable_date(N, D) },
     UB < X.
 
-% Original:
-% LB { assigned(N, D) : workable_date(N, D) } UB :-
-%     staff(N), work_days_bounds(N, LB, UB), not soften_hard.
-
 % assigned/2 has exactly one work shift
 1 { assigned(N, D, S) : work_shift(S) } 1 :- assigned(N, D).
 
@@ -46,10 +42,6 @@ violation(hard, weekly_rest_ub(N), UB, X) :-
     weekly_rest_bounds(N, LB, UB),
     X = { not assigned(N, D) : weekly_rest_available_date(N, D) },
     UB < X.
-
-% Original:
-% LB { not assigned(N, D) : weekly_rest_available_date(N, D) } UB :-
-%     weekly_rest_bounds(N, LB, UB), not soften_hard.
 
 % Definition of cause_type
 cause_type(weekly_rest_lb(N)) :- staff(N).

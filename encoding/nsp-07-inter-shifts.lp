@@ -16,7 +16,7 @@ violation(T, next_shift(N, D, S)) :-
 
 % Assuming that prev_shift(hard, S, _) and prev_shift(soft, S, _) are mutually exclusive
 % and cannot both be defined for the same shift S
-violation(hard, prev_shift(N, D, S)) :-
+violation(T, prev_shift(N, D, S)) :-
     ext_assigned(N, D, S),
     prev_shift(T, S, _),
     first_date(FD),

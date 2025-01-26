@@ -10,7 +10,7 @@ violation(soft, recommended_night_pair(N1, N2), LB, X) :-
     X < LB.
 
 % Forbidden night shift pairs must not share night shifts.
-violation(soft, forbidden_night_pair(N1, N2, D)) :-
+violation(hard, forbidden_night_pair(N1, N2, D)) :-
     staff(N1), staff(N2),
     forbidden_night_pair(N1, N2),
     night_work_shift(S),
