@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints on Nurse-by-Nurse Shift Assignments
+% H7, S3: Constraints on Nurse-by-Nurse Shift Assignments
 %----------------------------------------------------------------------
 
 % Assigns LB or more shifts
@@ -14,6 +14,9 @@ violation(T, shift_ub(N, SG), UB, X) :-
     X = { assigned(N, D, S) : shift_group(SG, S) },
     UB < X.
 
+%----------------------------------------------------------------------
+% H4:: Constraints on Average Working Hours
+%----------------------------------------------------------------------
 % Ensure equal assignment of shift LD, SE
 violation(hard, eq_shifts(N)) :-
     staff(N),

@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints on Nurse Pairs
+% H10, S6: Constraints on Nurse Pairs
 %----------------------------------------------------------------------
 
 % Recommended night shift pairs must be assigned the same night shift at least the specified number of times.

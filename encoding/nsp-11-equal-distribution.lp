@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints for Equal Shift Distribution
+% S9: Constraints for Equal Shift Distribution
 %----------------------------------------------------------------------
 
 num_curr_weekend_offs(N, X) :-

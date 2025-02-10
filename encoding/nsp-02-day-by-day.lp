@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints on Day-by-Day Shift Assignments
+% H6, S2: Constraints on Day-by-Day Shift Assignments
 %----------------------------------------------------------------------
 
 % Allocates LB or more staffs

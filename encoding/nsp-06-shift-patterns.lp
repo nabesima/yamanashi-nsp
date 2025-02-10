@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints on Shift Patterns
+% H8, S4: Constraints on Shift Patterns
 %----------------------------------------------------------------------
 
 pattern_occured(PID, N, D, D+LEN-1) :-

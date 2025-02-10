@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints for Leave Days With Weekly Rest
+% S8: Constraints for Leave Days With Weekly Rest
 %----------------------------------------------------------------------
 
 requested_leave_days(N, BD, ED) :-

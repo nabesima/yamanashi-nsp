@@ -1,12 +1,12 @@
 %----------------------------------------------------------------------
-% Constraints on Workable Days
+% H1: Constraints on Workable Days
 %----------------------------------------------------------------------
 
 % A nurse can work on a workable day
 { assigned(N, D) : workable_date(N, D) } :- staff(N).
 
 %----------------------------------------------------------------------
-% Constraints on Work Days and Shift Assignments
+% H1: Constraints on Work Days and Shift Assignments
 %----------------------------------------------------------------------
 
 % A nurse must work at least LB days
@@ -28,7 +28,7 @@ cause_type(work_days_lb(N)) :- staff(N).
 cause_type(work_days_ub(N)) :- staff(N).
 
 %----------------------------------------------------------------------
-% Constraints on Weekly Rest Assignments
+% H2: Constraints on Weekly Rest Assignments
 %----------------------------------------------------------------------
 
 % Do not assigns shifts within the weekly rest days (Required because work days

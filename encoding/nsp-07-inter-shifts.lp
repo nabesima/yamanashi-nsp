@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints on Inter-Shift Relationships
+% H9, S5: Constraints on Inter-Shift Relationships
 %----------------------------------------------------------------------
 
 % Assuming that next_shift(hard, S, _) and next_shift(soft, S, _) are mutually exclusive

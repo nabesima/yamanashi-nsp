@@ -1,5 +1,5 @@
 %----------------------------------------------------------------------
-% Constraints on Isolated Work Days
+% S7: Constraints on Isolated Work Days
 %----------------------------------------------------------------------
 isolated_work_day(N, D+1) :-
     staff(N),

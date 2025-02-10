@@ -5,7 +5,6 @@
 % Reproduce the assignment if there are fixed shift requests.
 :- fixed(assigned(N, D, S)), staff(N), work_shift(S), not assigned(N, D).
 :- fixed(assigned(N, D, S1)), staff(N), ext_assigned(N, D, S2), S1 != S2.
-%:- fixed(assigned(N, D, S)), not ext_assigned(N, D, S).
 
 % Suppresses warnings when there are no legacy and fixed data
 legacy(assigned(dummy, dummy, dummy)).
