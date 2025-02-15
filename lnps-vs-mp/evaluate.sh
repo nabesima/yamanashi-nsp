@@ -46,7 +46,7 @@ for inst in nsp-*.lp; do
 
     # LNPS
     ../nspsolver.py ../nsp.lp $inst no_hard_priority.lp $requests_file \
-        -p $old_model_file -o $new_model_file -l $legacy_file -s -f d0-$disx \
+        -p $old_model_file -o $new_model_file -l $legacy_file -s -f d0-$didx \
         --solve-limit="$solve_limit" -t $threads --configuration=trendy --stats > "$log_file" 2>&1
 
     new_model_file="$mp_dir/${base_name}.model"
@@ -55,7 +55,7 @@ for inst in nsp-*.lp; do
 
     # MP
     ../nspsolver.py ../nsp-mp.lp $inst no_hard_priority.lp $requests_file \
-        -p $old_model_file -o $new_model_file -l $legacy_file -s -f d0-$disx \
+        -p $old_model_file -o $new_model_file -l $legacy_file -s -f d0-$didx \
         --solve-limit="$solve_limit" -t $threads --configuration=trendy --stats > "$log_file" 2>&1
 
 done
