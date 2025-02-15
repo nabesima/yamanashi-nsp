@@ -1,6 +1,6 @@
 #!/bin/bash
 
-solve_limit=500000
+solve_limit=10000000
 
 # Parse command line arguments using getopts
 while getopts ":l:" opt; do
