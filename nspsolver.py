@@ -12,6 +12,7 @@ import argparse
 from colorama import Fore, Style
 import colorama
 from showmodel import make_shift_table, read_model
+from make_legacy_model import make_legacy_model, parse_rectangles, should_process
 
 # An event flag to signal when the solving process should stop (e.g., triggered by Ctrl+C).
 stop_event = threading.Event()
@@ -26,7 +27,7 @@ def signal_handler(sig, frame):
         condition.notify_all()
 
 class NSPSolver:
-    def __init__(self, files=None, output=None, clingo_options=None, soften_hard=False, show_model=None, show_table=False, verbose=0, stats=0):
+    def __init__(self, files=None, output=None, clingo_options=None, soften_hard=False, show_model=None, show_table=False, last_table=None, verbose=0, stats=0):
         """
         Initialize the NSPSolver
         :param files: List of logic program files
@@ -39,6 +40,7 @@ class NSPSolver:
         self.soften_hard = soften_hard
         self.show_model = show_model
         self.show_table = show_table
+        self.last_table = last_table
         self.verbose = verbose
         self.stats = stats
         self.control = clingo.Control(self.clingo_options)
@@ -135,7 +137,7 @@ class NSPSolver:
         header = f"Answer: {model.number}, Cost: {' '.join(map(str, model.cost))}, Elapsed: {elapsed:.1f}s"
         if self.soften_hard:
             header = Fore.YELLOW + header + ", Soften hard constraints" + Style.RESET_ALL
-        if self.verbose > 0:
+        if self.verbose > 0 and not self.show_table:
             print(header)
 
         if self.output:
@@ -156,9 +158,13 @@ class NSPSolver:
             print("\n".join(str(atom) for atom in model.symbols(atoms=True)))
 
         if self.show_table:
-            table = make_shift_table(model.symbols(atoms=True))
+            table = make_shift_table(model.symbols(atoms=True), self.last_table)
             if table:
+                if table.num_changed != None:
+                    header += f", #Changed: {table.num_changed}"
+                print(header)
                 table.display()
+                self.last_table = table
             else:
                 print("Error: model contains no shift assignments (ext_assigned/3).")
 
@@ -214,47 +220,79 @@ class NSPContext:
         m = m.number
         return clingo.Number(n if n > m else m)
 
-def make_legacy_model(in_file: str, out_file: str):
-    soften_hard = False
-    atoms = read_model(in_file)
-    with open(out_file, 'w') as out:
-        for atom in atoms:
-            if atom.match("assigned", 2) or atom.match("assigned", 3):
-                print(f'legacy({atom}).', file=out)
-            elif atom.match("soften_hard", 0):
-                soften_hard = True
-    return soften_hard
-
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="NSPSolver")
+
+    # Positional argument
     parser.add_argument(
         "files",
         nargs="+",
         help="Logic program files (one or more)"
     )
-    parser.add_argument("-m", action="store_true", help="Display only atoms specified by #show.")
-    parser.add_argument("-M", action="store_true", help="Display all atoms.")
-    parser.add_argument("-s", action="store_true", help="Display the shift table each time a model is found. However, since it is frequently displayed, it is recommended to use the showtable.py command." )
-    parser.add_argument("-o", "--output", type=str, default="found-model.lp", help="Output file for models (default: found-model.lp)")
-    parser.add_argument("-p", "--prioritize", nargs="?", type=str, const="found-model.lp", help="Specify the file containing the model to prioritize during search")
-    parser.add_argument("--mono", action="store_true", help="Display output in monochrome (no colors).")
+
+    # Boolean flags
+    parser.add_argument(
+        "-m", action="store_true",
+        help="Display only atoms specified by #show."
+    )
+    parser.add_argument(
+        "-M", action="store_true",
+        help="Display all atoms."
+    )
+    parser.add_argument(
+        "-s", action="store_true",
+        help=(
+            "Display the shift table each time a model is found. "
+            "However, since it is frequently displayed, it is recommended to use the showtable.py command."
+        )
+    )
+    parser.add_argument(
+        "--mono", action="store_true",
+        help="Display output in monochrome (no colors)."
+    )
+
+    # File and string input arguments
+    parser.add_argument(
+        "-o", "--output",
+        type=str, default="found-model.lp", metavar="MODEL_FILE",
+        help="Output file for models (default: found-model.lp)"
+    )
+    parser.add_argument(
+        "-p", "--prioritize",
+        nargs="?", type=str, const="found-model.lp", metavar="MODEL_FILE",
+        help="Specify the file containing the model to prioritize during search"
+    )
+    parser.add_argument(
+        "-l", "--legacy",
+        type=str, default="legacy-model.lp", metavar="LEGACY_FILE",
+        help="Specify the legacy model file when use prioritizing search"
+    )
+
+    # List-based arguments
+    parser.add_argument(
+        "-c", "--clear",
+        type=str, action="append", default=[], metavar="AREA_DEF",
+        help="Clear specific assignments (e.g., '-c d2-5,n3-6')"
+    )
+    parser.add_argument(
+        "-f", "--fixed",
+        type=str, action="append", default=[], metavar="AREA_DEF",
+        help="Fix specific assignments (e.g., '-f d1-3,n2-4')"
+    )
+
+    # Verbose and statistics level
     parser.add_argument(
         "-v", "--verbose",
-        nargs="?",  # Optional argument with a default value if specified without a value
-        const=1,  # Default to 1 if -v is specified without a value
-        type=int,  # Ensure the verbose level is an integer
-        default=1,  # Default to 0 if -v is not specified
+        nargs="?", const=1, type=int, default=1, metavar="LV",
         help="Set verbosity level (0: silent, 1: basic, 2: detailed)"
     )
     parser.add_argument(
         "--stats",
-        nargs="?",  # Optional argument with a default value if specified without a value
-        const=1,  # Default to 1 if -s is specified without a value
-        type=int,  # Ensure the verbose level is an integer
-        default=0,  # Default to 0 if -s is not specified
+        nargs="?", const=1, type=int, default=0, metavar="LV",
         help="Set statistics level (0: silent, 1: basic, 2: detailed)"
     )
+
     # Pass unrecognized arguments to Clingo
     args, clingo_args = parser.parse_known_args()
 
@@ -271,10 +309,20 @@ def main():
     # If a legacy model file is specified, extract the assigned predicates from the model
     # and prioritize them.
     soften_hard = False
+    last_table = None
     if args.prioritize:
-        soften_hard = make_legacy_model(args.prioritize, "legacy-model.lp")
-        args.files.append("legacy-model.lp")
+        clear_rects = parse_rectangles(args.clear)
+        fixed_rects = parse_rectangles(args.fixed)
+
+        # print(f"clear: {clear_rects}")
+        # print(f"fixed: {fixed_rects}")
+
+        soften_hard = make_legacy_model(args.prioritize, clear_rects, fixed_rects, args.legacy)
+        args.files.append(args.legacy)
         clingo_args.append("--heuristic=Domain")
+
+        atoms = read_model(args.prioritize)
+        last_table = make_shift_table(atoms)
 
     # Add signal hander
     signal.signal(signal.SIGINT, signal_handler)
@@ -295,6 +343,7 @@ def main():
         soften_hard=soften_hard,
         show_model=show_model,
         show_table=args.s,
+        last_table=last_table,
         verbose=args.verbose,
         stats=args.stats,
     )

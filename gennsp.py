@@ -312,6 +312,7 @@ class NSP:
         self.next_shifts = []
         self.recommended_pairs = []
         self.forbidden_pairs = []
+        self.priorities = ''
 
     def set_width(self, num_days: int, start_date: str = "2025-04-01"):
         self.dates = Dates(start_date, num_days)
@@ -411,7 +412,7 @@ class NSP:
     def add_forbidden_pair(self, n1: Staff, n2: Staff):
         self.forbidden_pairs.append(ForbiddenPair(n1, n2))
 
-    def set_default_setting(self, num_staffs:int = 6, num_days: int = 7, start_date: str = "2025-04-01", consec_work_days: int = 5, staff_req: float = 0.05, def_req_staffs: int = 0, recommended_pairs: int = 0, forbidden_pairs: int = 0):
+    def set_default_setting(self, num_staffs:int = 6, num_days: int = 7, start_date: str = "2025-04-01", consec_work_days: int = 5, staff_req: float = 0.05, def_req_staffs: int = 0, recommended_pairs: int = 0, forbidden_pairs: int = 0, use_priority: bool = True):
         self.set_width(num_days, start_date)
         self.set_default_staffs(num_staffs)
         self.set_default_shifts_constraint()
@@ -423,7 +424,8 @@ class NSP:
         self.set_default_prev_next_shifts()
         self.set_default_recommended_pairs(recommended_pairs)
         self.set_default_forbidden_pairs(forbidden_pairs)
-        self.set_default_priority()
+        if use_priority:
+            self.set_default_priority()
 
     def set_default_staffs(self, num):
 
@@ -671,6 +673,7 @@ def main():
     parser.add_argument("-dr", "--default-requests", type=int, default=0, help="Specify the number of default shift requests")
     parser.add_argument("-rp", "--recommended-pairs", type=int, default=0, help="Specify the number of recommended night shift pairs")
     parser.add_argument("-fp", "--forbidden-pairs", type=int, default=0, help="Specify the number of forbidden night shift pairs")
+    parser.add_argument("-np", "--no-priority", action="store_true", help="Ignore priority levels for all violations")
     parser.add_argument("--schedule-offset", type=int, default=0, help="Generate the schedule a specified number of schedules ahead or behind from the start date")
     parser.add_argument("--seed", type=int, default=None, help="Set the random seed")
     args = parser.parse_args()
@@ -695,6 +698,7 @@ def main():
         args.default_requests,
         args.recommended_pairs,
         args.forbidden_pairs,
+        not args.no_priority,
     )
     nsp_instance.to_asp(stdout)
 

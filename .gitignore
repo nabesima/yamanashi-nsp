@@ -8,3 +8,5 @@ found-model.lp
 legacy-model.lp
 gen-instances/tmp-past
 gen-instances/tmp-curr
+lnps-vs-mp/tmp-past
+lnps-vs-mp/tmp-curr

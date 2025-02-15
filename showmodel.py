@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import time
+from typing import Optional
 import clingo
 from colorama import Back, Fore, Style
 import colorama
@@ -85,7 +86,7 @@ SHIFT_COLOR = {
 
 @dataclass
 class ShiftTable:
-    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, rewards, penalty_map, reward_map, request_map):
+    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, rewards, penalty_map, reward_map, request_map, old_table, legacy, fixed, cleared):
         self.title = title
         self.main_df = main_df
         self.right_df = right_df
@@ -121,8 +122,23 @@ class ShiftTable:
 
         self.cells['TopBorder'] = {'index': Border()}
 
+        def is_changed(no, date, shift):
+            if not legacy or date < 0 or width <= date:
+                return False
+            assigned = next((item for item in legacy if item['No'] == no and item['Date'] == date), None)
+            if not assigned:
+                return False
+            return shift != assigned['Shift']
+        def is_fixed(no, date):
+            return fixed and any(item['No'] == no and item['Date'] == date for item in fixed)
+        def is_cleared(no, date):
+            return cleared and any(item['No'] == no and item['Date'] == date for item in cleared)
+
         # ------------------------------------------------------------
         # Make the main table
+        self.num_changed = None
+        if legacy:
+            self.num_changed = 0
         for no, row in self.main_df.iterrows():
             style = Fore.BLACK + Back.RED if self.has_penalty(no, 'index') else None
             self.cells[no] = {'index': Cell(str(no), style=style, right_border=True)}
@@ -130,10 +146,20 @@ class ShiftTable:
             for rd, s in row.items():
                 border = True if rd == -1 or rd == width - 1 or rd == width + 6 else False
                 style = SHIFT_COLOR[s]
+                if is_fixed(no, rd):
+                    if Style.DIM in style:
+                        style = Fore.BLACK
+                    style += Back.LIGHTBLACK_EX
                 if self.has_request(no, rd):
                     style = Fore.BLACK + Back.GREEN
                 if self.has_penalty(no, rd):
                     style = Fore.BLACK + Back.RED
+                # if old_table and old_table.cells[no][rd].text != s:
+                #     style += Fore.BLACK + Back.YELLOW
+                if is_changed(no, rd, s):
+                    style += Fore.BLACK + Back.YELLOW
+                if is_changed(no, rd, s):
+                    self.num_changed += 1
                 self.cells[no][rd] = Cell(s, style=style, right_border=border)
 
         self.cells['BottomBorder'] = {'index': Border()}
@@ -198,6 +224,8 @@ class ShiftTable:
 
     def display(self):
         if self.title:
+            if self.num_changed != None:
+                self.title += f", #Changed: {self.num_changed}"
             print(self.title)
         for row in self.cells:
             print(''.join(map(lambda c: c.to_s(), self.cells[row].values())))
@@ -248,6 +276,9 @@ ATOM_RULES = {
     'first_full_date': ['num'],
     'table_width': ['num'],
     'ext_assigned': [('No', 'num'), ('Date', 'num'), ('Shift', 'str')],
+    'fixed': [ { 'ext_assigned': [ ('No', 'num'), ('Date', 'num'), ('Shift', 'str') ] } ],
+    'cleared': [ { 'ext_assigned': [ ('No', 'num'), ('Date', 'num'), ('Shift', 'str') ] } ],
+    'legacy': [ { 'ext_assigned': [ ('No', 'num'), ('Date', 'num'), ('Shift', 'str') ] } ],
     'out_date': [('RDay', 'num'), ('ADay', 'num'), ('Dweek', 'str')],
     'staff': [('No', 'num'), ('Name', 'str'), ('Job', 'str'), ('ID', 'str'), ('Point', 'num')],
     'staff_group': [('StaffGroup', 'str'), ('No', 'num')],
@@ -307,7 +338,7 @@ REWARD_CAUSE_RULES = {
     'tue_shifts':          { 'target': '#tueShfts', 'args': ['num'] },
 }
 
-def conv_symbol(sym: clingo.Symbol, type: str):
+def conv_symbol(sym: clingo.Symbol, type):
     # print(f"conv_symobl({sym}, {type})")
     if type == 'num':
         return sym.number
@@ -315,9 +346,19 @@ def conv_symbol(sym: clingo.Symbol, type: str):
         return sym.string
     if type == 'sym':
         return sym
+    if isinstance(type, dict):
+        if sym.name in type:
+            parse_rule = type[sym.name]
+            if len(sym.arguments) == len(parse_rule):
+                args = {}
+                for idx, arg in enumerate(sym.arguments):
+                    name, type = parse_rule[idx]
+                    args[name] = conv_symbol(arg, type)
+                return args
+        return None
     raise ValueError(f'Unexpected type: {type} for {sym}')
 
-def make_shift_table(atoms: list[clingo.Symbol]):
+def make_shift_table(atoms: list[clingo.Symbol], old_table: Optional[ShiftTable]=None):
     # ------------------------------------------------------------
     # Parse atoms
     model = {}
@@ -331,7 +372,8 @@ def make_shift_table(atoms: list[clingo.Symbol]):
         if len(parse_rule) == 1:
             arg = atom.arguments[0]
             arg = conv_symbol(arg, parse_rule[0])
-            model[atom.name].append(arg)
+            if arg:
+                model[atom.name].append(arg)
         elif len(atom.arguments) == len(parse_rule):
             args = {}
             for idx, arg in enumerate(atom.arguments):
@@ -491,8 +533,17 @@ def make_shift_table(atoms: list[clingo.Symbol]):
     title = None
     if 'header' in model:
         title = model['header'][0]
-
-    return ShiftTable(title, main_df, right_df, bottom_df, penalties, rewards, penalty_map, reward_map, request_map)
+    legacy = None
+    if 'legacy' in model:
+        legacy = model['legacy']
+    fixed = None
+    if 'fixed' in model:
+        fixed = model['fixed']
+    cleared = None
+    if 'cleared' in model:
+        cleared = model['cleared']
+    return ShiftTable(title, main_df, right_df, bottom_df, penalties, rewards, penalty_map, reward_map, request_map,
+                      old_table, legacy, fixed, cleared)
 
 def add(pmap, row, col, p):
     if row not in pmap:
@@ -590,29 +641,35 @@ def read_model(file):
 def monitor_file(file, interval):
     """Monitor the file for changes and reload when updated."""
     last_modified = None
+    last_table = None
     while True:
         try:
             current_modified = os.path.getmtime(file)
             if current_modified != last_modified:
                 last_modified = current_modified
                 atoms = read_model(file)
-                table = make_shift_table(atoms)
+                table = make_shift_table(atoms, last_table)
                 if table:
                     table.display()
+                    last_table = table
                 else:
                     print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
-            time.sleep(interval)
+            if interval > 0:
+                time.sleep(interval)
         except FileNotFoundError:
             print(f"File '{file}' not found. Waiting for it to be created...")
-            time.sleep(interval)
+            if interval > 0:
+                time.sleep(interval)
 
 def parse_model(facts):
     atoms = []
     try:
+        facts = [fact for fact in facts if fact != '']
         for fact in facts:
             atom = clingo.parse_term(fact)
             atoms.append(atom)
     except RuntimeError as e:
+        print(f"facts = {facts}")
         print(f"Error parsing fact '{fact}': {e}")
     return atoms
 
@@ -626,7 +683,7 @@ def main():
 
     colorama.init(strip=args.mono)
 
-    if args.follow:
+    if isinstance(args.follow, (int, float)):
         monitor_file(args.file, interval=args.follow)
     else:
         atoms = read_model(args.file)

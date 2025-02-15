@@ -94,7 +94,12 @@ penalty(TYPE, CAUSE, 0, 0, 1, P) :-
     priority(TYPE, CAUSE, P).
 
 % for obj function
-penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
+penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P), not no_hard_priority.
+
+% for experiments with minimum perturbation
+penalty(soft, CAUSE, W, P) :- penalty(soft, CAUSE, _, _, W, P), no_hard_priority.
+penalty(hard, CAUSE, W*10, P) :- penalty(hard, CAUSE, _, _, W, P), no_hard_priority.
+penalty(hard_sp, CAUSE, W*10, P) :- penalty(hard_sp, CAUSE, _, _, W, P), no_hard_priority.
 
 %----------------------------------------------------------------------
 % Reward
@@ -113,9 +118,9 @@ achievement(dummy, dummy).
 %% for violations
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
 priority(soft, C, P) :- dep_priority(C, P).
-priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _).
+priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _), not no_hard_priority.
 % Assign priorities to relaxed hard constraints based on soft constraint priorities
-priority(hard, C, P) :- cause_type(C), dep_priority(C, Q), P = 10 + Q - 1.
+priority(hard, C, P) :- cause_type(C), dep_priority(C, Q), P = 10 + Q - 1, not no_hard_priority.
 %% for achivements
 priority(C, 1) :- cause_type(C), not dep_priority(C, _).
 priority(C, P) :- dep_priority(C, P).
