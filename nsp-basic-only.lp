@@ -1,5 +1,5 @@
 #include "./encoding/nsp-prepro.lp".
-#include "./encoding/nsp-restart.lp".
+#include "./encoding/nsp-prioritize.lp".
 
 #include "./encoding/nsp-01-basic.lp".
 % #include "./encoding/nsp-02-day-by-day.lp".
