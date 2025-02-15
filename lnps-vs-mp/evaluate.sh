@@ -21,9 +21,13 @@ done
 
 # Create the output directories
 lnps_dir="lnps"
-mp_dir="min-perturb"
 mkdir -p "$lnps_dir"
-mkdir -p "$mp_dir"
+
+mp_dir="min-perturb"
+priority_list=(1 2 3)
+for priority in "${priority_list[@]}"; do
+  mkdir -p "$mp_dir-p${priority}"
+done
 
 # Enable debugging and strict error handling
 export PS4='+ [Elapsed: ${SECONDS}s] [Line $LINENO] '
@@ -49,13 +53,17 @@ for inst in nsp-*.lp; do
         -p $old_model_file -o $new_model_file -l $legacy_file -s -f d0-$didx \
         --solve-limit="$solve_limit" -t $threads --configuration=trendy --stats > "$log_file" 2>&1
 
-    new_model_file="$mp_dir/${base_name}.model"
-    legacy_file="$mp_dir/${base_name}.legacy"
-    log_file="$mp_dir/${base_name}.log"
+    for priority in "${priority_list[@]}"; do
+        mp_target_dir="$mp_dir-p${priority}"
 
-    # MP
-    ../nspsolver.py ../nsp-mp.lp $inst no_hard_priority.lp $requests_file \
-        -p $old_model_file -o $new_model_file -l $legacy_file -s -f d0-$didx \
-        --solve-limit="$solve_limit" -t $threads --configuration=trendy --stats > "$log_file" 2>&1
+        new_model_file="$mp_target_dir/${base_name}.model"
+        legacy_file="$mp_target_dir/${base_name}.legacy"
+        log_file="$mp_target_dir/${base_name}.log"
+
+        # MP
+        ../nspsolver.py ../nsp-mp.lp $inst no_hard_priority.lp $requests_file \
+            -p $old_model_file -o $new_model_file -l $legacy_file -s -f d0-$didx \
+            --solve-limit="$solve_limit" -t $threads --configuration=trendy --const mp_priority=$priority --stats > "$log_file" 2>&1
+    done
 
 done
