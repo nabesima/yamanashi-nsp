@@ -42,7 +42,7 @@ for inst in nsp-*.lp; do
 
     days="${base_name#*-d}" # Remove everything up to and including '-d', resulting in "28-r0.10-rp2-fp2-s0.lp"
     days="${days%%-*}"      # Remove everything after the first '-', keeping only "28"
-    didx=$((days - 1))
+    didx=$(((days / 2) - 1))
 
     # LNPS
     ../nspsolver.py ../nsp.lp $inst no_hard_priority.lp $requests_file \
