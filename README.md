@@ -346,7 +346,7 @@ option).
 
 Even if the execution of Clingo is interrupted (e.g., by pressing `Ctrl+C`), you
 can effectively resume the search by reusing the last model. The script
-`make-legacy-model.py` extracts the last model from the log file and saves it as
+`make_legacy_model.py` extracts the last model from the log file and saves it as
 `legacy-model.lp`. Afterward, you can use Clingo with the `legacy-model.lp` file
 and the `--heuristic=Domain` option. This setup prioritizes and reproduces the
 assigned predicates contained in the `legacy-model.lp` file, allowing you to
@@ -356,7 +356,7 @@ continue the search to some extent.
 clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
 [Ctrl+C pressed]
 
-./make-legacy-model.py nsp.log -o legacy-model.lp
+./make_legacy_model.py nsp.log -o legacy-model.lp
 clingo nsp.lp cli.lp /path/to/nsp-instance.lp legacy-model.lp --heuristic=Domain > nsp.log
 ```
 
