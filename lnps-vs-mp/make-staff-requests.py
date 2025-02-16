@@ -15,8 +15,8 @@ def main():
 
     req_shifts = ["D", "SE", "SN", "WR", "BT", "TR", "AL", "BL"]
     for _ in range(0, args.staff_request):
-        staff = random.randint(0, args.num_nurses) + 1
-        date = int(args.num_days / 2) + random.randint(0, int(args.num_days / 2))
+        staff = random.randrange(0, args.num_nurses) + 1
+        date = int(args.num_days / 2) + random.randrange(0, int(args.num_days / 2))
         shift = random.choice(req_shifts)
         # Change WR to PH if the date is holiday
         if shift == "WR" and (date == 7 or date == 15):     # The 7th and 15th of September are public holidays in Japan
