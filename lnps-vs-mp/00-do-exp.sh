@@ -20,6 +20,6 @@ export PS4='+ [Elapsed: ${SECONDS}s] [Line $LINENO] '
 set -euxo pipefail
 
 ./make-instances-with-past-shifts.sh -l $solve_limit
-./make-staff-requests.sh
 ./presolve.sh -l $solve_limit
+./make-staff-requests.sh
 ./evaluate.sh -l $solve_limit
