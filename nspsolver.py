@@ -27,7 +27,7 @@ def signal_handler(sig, frame):
         condition.notify_all()
 
 class NSPSolver:
-    def __init__(self, files=None, output=None, clingo_options=None, soften_hard=False, show_model=None, show_table=False, last_table=None, verbose=0, stats=0):
+    def __init__(self, files=None, output=None, clingo_options=None, soften_hard=False, show_model=None, show_table=False, last_table=None, timeout=None, verbose=0, stats=0):
         """
         Initialize the NSPSolver
         :param files: List of logic program files
@@ -41,10 +41,12 @@ class NSPSolver:
         self.show_model = show_model
         self.show_table = show_table
         self.last_table = last_table
+        self.timeout = timeout
         self.verbose = verbose
         self.stats = stats
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
+        self.timer = None
 
     def load_programs(self):
         """
@@ -62,6 +64,11 @@ class NSPSolver:
         Solve the logic programs and print the results
         """
         self.start_time = time.time()
+
+        # Start the timer if a timeout is set
+        if self.timeout:
+            self.timer = threading.Timer(self.timeout, self.time_expired)
+            self.timer.start()
 
         # Ground the logic program
         self.control.ground([("base", [])], context=NSPContext())
@@ -169,6 +176,12 @@ class NSPSolver:
                 print("Error: model contains no shift assignments (ext_assigned/3).")
 
     def on_finish(self, result):
+        stop_event.set()
+        with condition:
+            condition.notify_all()
+
+    def time_expired(self):
+        print("\nTime limit exceeded! Stopping Clingo...")
         stop_event.set()
         with condition:
             condition.notify_all()
@@ -281,7 +294,10 @@ def main():
         help="Fix specific assignments (e.g., '-f d1-3,n2-4')"
     )
 
-    # Verbose and statistics level
+    # Others
+    parser.add_argument(
+        "-t", "--timeout",
+        type=int, default=None, metavar="SECONDS", help="Time limit for solving (in seconds)")
     parser.add_argument(
         "-v", "--verbose",
         nargs="?", const=1, type=int, default=1, metavar="LV",
@@ -344,6 +360,7 @@ def main():
         show_model=show_model,
         show_table=args.s,
         last_table=last_table,
+        timeout=args.timeout,
         verbose=args.verbose,
         stats=args.stats,
     )
