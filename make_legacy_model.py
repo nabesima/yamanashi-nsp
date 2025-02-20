@@ -93,22 +93,32 @@ def should_process(assigned, rectangles):
 
 def make_legacy_model(in_file: str, clear_rects, fixed_rects, out_file: str):
     soften_hard = False
+    table_width = 28
     atoms = read_model(in_file)
+    atoms.sort()
     with open(out_file, 'w') as out:
+        # output legacy/1 for all ext_assigned/3 atoms
         for atom in atoms:
-            if atom.match("assigned", 2) or atom.match("assigned", 3):
-                if not should_process(atom, clear_rects):
-                    print(f'prioritized({atom}).', file=out)
-            elif atom.match("ext_assigned", 3):
+            if atom.match("ext_assigned", 3):
                 print(f'legacy({atom}).', file=out)
-                if should_process(atom, fixed_rects):
-                    print(f'fixed({atom}).', file=out)
-                if not should_process(atom, clear_rects):
-                    print(f'prioritized({atom}).', file=out)
-                else:
-                    print(f'cleared({atom}).', file=out)  # for confirmation
             elif atom.match("soften_hard", 0):
                 soften_hard = True
+            elif atom.match("table_width", 1):
+                table_width = atom.arguments[0].number
+        # output fixed/1 for all ext_assigned/3 atoms that are fixed
+        for atom in atoms:
+            if atom.match("ext_assigned", 3) and should_process(atom, fixed_rects):
+                print(f'fixed({atom}).', file=out)
+        # output prioritized/1 for all ext_assigned/3 atoms that are prioritized
+        for atom in atoms:
+            if atom.match("ext_assigned", 3) and not should_process(atom, clear_rects) and not should_process(atom, fixed_rects):
+                day = atom.arguments[1].number
+                if 0 <= day < table_width:
+                    print(f'prioritized({atom}).', file=out)
+        # output cleared/1 for all ext_assigned/3 atoms that are cleared
+        for atom in atoms:
+            if atom.match("ext_assigned", 3) and should_process(atom, clear_rects):
+                print(f'cleared({atom}).', file=out)  # for confirmation
     return soften_hard
 
 def main():
