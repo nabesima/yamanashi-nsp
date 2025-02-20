@@ -296,7 +296,7 @@ def main():
 
     # Others
     parser.add_argument(
-        "-t", "--timeout",
+        "--timeout",
         type=int, default=None, metavar="SECONDS", help="Time limit for solving (in seconds)")
     parser.add_argument(
         "-v", "--verbose",
