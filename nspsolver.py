@@ -124,14 +124,14 @@ class NSPSolver:
             print()
         if self.verbose > 0:
             s = self.control.statistics['summary']
-            print(f'Models       : {int(s['models']['enumerated'])}')
+            print(f'Models       : {int(s["models"]["enumerated"])}')
             if get_cost() != None:
                 print(f'  Optimum    : {"Yes" if result.exhausted else "No"}')
                 print(f'Optimization : {get_cost()}')
-            print(f'Time         : {s['times']['total']:.3f}s')
-            print(f'CPU Time     : {s['times']['cpu']:.3f}s')
+            print(f'Time         : {s["times"]["total"]:.3f}s')
+            print(f'CPU Time     : {s["times"]["cpu"]:.3f}s')
             if s['concurrency'] > 1:
-                print(f'Threads      : {int(s['concurrency'])}')
+                print(f'Threads      : {int(s["concurrency"])}')
 
         return result
 
