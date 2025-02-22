@@ -86,7 +86,7 @@ SHIFT_COLOR = {
 
 @dataclass
 class ShiftTable:
-    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, rewards, penalty_map, reward_map, request_map, old_table, legacy, fixed, cleared):
+    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, rewards, penalty_map, reward_map, request_map, old_table, prioritized, fixed, cleared):
         self.title = title
         self.main_df = main_df
         self.right_df = right_df
@@ -123,9 +123,9 @@ class ShiftTable:
         self.cells['TopBorder'] = {'index': Border()}
 
         def is_changed(no, date, shift):
-            if not legacy or date < 0 or width <= date:
+            if not prioritized:
                 return False
-            assigned = next((item for item in legacy if item['No'] == no and item['Date'] == date), None)
+            assigned = next((item for item in prioritized if item['No'] == no and item['Date'] == date), None)
             if not assigned:
                 return False
             return shift != assigned['Shift']
@@ -137,7 +137,7 @@ class ShiftTable:
         # ------------------------------------------------------------
         # Make the main table
         self.num_changed = None
-        if legacy:
+        if prioritized:
             self.num_changed = 0
         for no, row in self.main_df.iterrows():
             style = Fore.BLACK + Back.RED if self.has_penalty(no, 'index') else None
@@ -277,8 +277,8 @@ ATOM_RULES = {
     'table_width': ['num'],
     'ext_assigned': [('No', 'num'), ('Date', 'num'), ('Shift', 'str')],
     'fixed': [ { 'ext_assigned': [ ('No', 'num'), ('Date', 'num'), ('Shift', 'str') ] } ],
+    'prioritized': [ { 'ext_assigned': [ ('No', 'num'), ('Date', 'num'), ('Shift', 'str') ] } ],
     'cleared': [ { 'ext_assigned': [ ('No', 'num'), ('Date', 'num'), ('Shift', 'str') ] } ],
-    'legacy': [ { 'ext_assigned': [ ('No', 'num'), ('Date', 'num'), ('Shift', 'str') ] } ],
     'out_date': [('RDay', 'num'), ('ADay', 'num'), ('Dweek', 'str')],
     'staff': [('No', 'num'), ('Name', 'str'), ('Job', 'str'), ('ID', 'str'), ('Point', 'num')],
     'staff_group': [('StaffGroup', 'str'), ('No', 'num')],
@@ -533,9 +533,9 @@ def make_shift_table(atoms: list[clingo.Symbol], old_table: Optional[ShiftTable]
     title = None
     if 'header' in model:
         title = model['header'][0]
-    legacy = None
-    if 'legacy' in model:
-        legacy = model['legacy']
+    prioritized = None
+    if 'prioritized' in model:
+        prioritized = model['prioritized']
     fixed = None
     if 'fixed' in model:
         fixed = model['fixed']
@@ -543,7 +543,7 @@ def make_shift_table(atoms: list[clingo.Symbol], old_table: Optional[ShiftTable]
     if 'cleared' in model:
         cleared = model['cleared']
     return ShiftTable(title, main_df, right_df, bottom_df, penalties, rewards, penalty_map, reward_map, request_map,
-                      old_table, legacy, fixed, cleared)
+                      old_table, prioritized, fixed, cleared)
 
 def add(pmap, row, col, p):
     if row not in pmap:
@@ -580,7 +580,7 @@ def make_penalty_map(penalties):
             add(pmap, args[0], args[2], p)
             add(pmap, args[1], args[2], p)
         else:
-            raise ValueError(f'Unknown cause target: {cause_rule['target']}')
+            raise ValueError(f'Unknown cause target: {cause_rule["target"]}')
 
     return pmap
 
