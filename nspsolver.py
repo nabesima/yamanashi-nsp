@@ -62,6 +62,7 @@ class NSPSolver:
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
         self.last_model = None
+        self.last_cost = None
         self.table_width = None
 
     def load_programs(self):
@@ -114,6 +115,7 @@ class NSPSolver:
 
             curr_pritz_targets = self.pritz_targets
             prev_pritz_atoms = []
+            prev_cost = None
 
             self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
             self.lnps_timer.start()
@@ -187,6 +189,9 @@ class NSPSolver:
                             day = atom.arguments[1].number
                             if self.table_width and 0 <= day < self.table_width:
                                 curr_pritz_targets.append(atom)
+                    if self.last_cost == prev_cost:
+                        self.lnps_interval *= 1.1
+                    prev_cost = self.last_cost
                     stop_event.clear()
                     self.is_lnps_time_expired = False
                     self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
@@ -254,7 +259,8 @@ class NSPSolver:
             elif atom.match("table_width", 1):
                 self.table_width = atom.arguments[0].number
 
-        header = f"Answer: {model.number}, Cost: {' '.join(map(str, model.cost))}, Elapsed: {elapsed:.1f}s"
+        self.last_cost = ' '.join(map(str, model.cost))
+        header = f"Answer: {model.number}, Cost: {self.last_cost}, Elapsed: {elapsed:.1f}s"
         if changed_shifts != None:
             header += f", #Changed: {changed_shifts}"
         if self.soften_hard:
@@ -303,7 +309,7 @@ class NSPSolver:
             condition.notify_all()
 
     def lnps_time_expired(self):
-        print("\nLNPS time limit exceeded! Stopping Clingo...")
+        print(f"\nLNPS time limit ({round(self.lnps_interval, 1)}) exceeded! Stopping Clingo...")
         self.is_lnps_time_expired = True
         stop_event.set()
         with condition:
