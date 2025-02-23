@@ -7,10 +7,11 @@ import socket
 import threading
 import time
 import clingo
+from clingo import Number, Function
 import argparse
 
-from colorama import Fore, Style
 import colorama
+from colorama import Fore, Style
 from showmodel import make_shift_table, read_model
 from make_legacy_model import make_legacy_model, parse_rectangles, should_process
 
@@ -27,7 +28,7 @@ def signal_handler(sig, frame):
         condition.notify_all()
 
 class NSPSolver:
-    def __init__(self, files=None, output=None, clingo_options=None, soften_hard=False, show_model=None, show_table=False, last_table=None, timeout=None, verbose=0, stats=0):
+    def __init__(self, files=None, output=None, clingo_options=None, strategy="default", lnps_interval=None, init_model_file=None, fixed_rects=[], clear_rects=[], show_model=None, show_table=False, timeout=None, verbose=0, stats=0):
         """
         Initialize the NSPSolver
         :param files: List of logic program files
@@ -37,16 +38,31 @@ class NSPSolver:
         self.files = files if files else []
         self.output = output
         self.clingo_options = clingo_options if clingo_options else []
-        self.soften_hard = soften_hard
+        self.strategy = strategy
+        self.lnps_interval = lnps_interval
+        self.is_lnps_time_expired = False
+        self.fixed_rects = fixed_rects
+        self.clear_rects = clear_rects
         self.show_model = show_model
         self.show_table = show_table
-        self.last_table = last_table
         self.timeout = timeout
         self.verbose = verbose
         self.stats = stats
+
+        self.soften_hard = False
+        self.fixed_targets = []
+        self.pritz_targets = []
+        if init_model_file:
+            self.soften_hard, self.fixed_targets, self.pritz_targets = make_legacy_model(init_model_file, fixed_rects, clear_rects)
+        if init_model_file or self.strategy == "lnps":
+            self.clingo_options.append("--heuristic=Domain")
+            self.debug_print(f"Set heuristic to Domain")
+
+        print(f"clingo_options = {self.clingo_options}")
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
-        self.timer = None
+        self.last_model = None
+        self.table_width = None
 
     def load_programs(self):
         """
@@ -67,17 +83,83 @@ class NSPSolver:
 
         # Start the timer if a timeout is set
         if self.timeout:
-            self.timer = threading.Timer(self.timeout, self.time_expired)
-            self.timer.start()
+            timer = threading.Timer(self.timeout, self.time_expired)
+            timer.start()
+
+        # Add Output fixed targets
+        fixed_atoms = ["#show fixed/1."]
+        for target in self.fixed_targets:
+            fixed_atoms.append(f"fixed({target}).")
+        fixed_statement = "\n".join(fixed_atoms)
+        self.control.add("base", [], fixed_statement)
+        self.debug_print("Fixed Statements:")
+        self.debug_print(fixed_statement)
+
+        # Add prioritized targets
+        pritz_atoms = ["#show prioritized/1."]
+        for target in self.pritz_targets:
+            pritz_atoms.append(f"prioritized({target}).")
+        pritz_statement = "\n".join(pritz_atoms)
+        self.control.add("base", [], pritz_statement)
+        self.debug_print("Prioritized Statements:")
+        self.debug_print(pritz_statement)
+
+        # Add heuristic for LNPS
+        if self.strategy == "lnps":
+            heuristic = "#heuristic ext_assigned(N,D,S) : prioritized(ext_assigned(N,D,S), t). [1, true]"
+            self.control.add("prioritized", ["t"], heuristic)
+            self.debug_print("Heuristic Statement:")
+            self.debug_print("#program heuristic(t).")
+            self.debug_print(heuristic)
+
+            curr_pritz_targets = self.pritz_targets
+            prev_pritz_atoms = []
+
+            self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
+            self.lnps_timer.start()
+
 
         # Ground the logic program
         self.control.ground([("base", [])], context=NSPContext())
 
         # Solve the program
-        disable_soften_hard = [(clingo.Function("soften_hard"), False)]  # Hard constraints are enabled
-        enable_soften_hard  = [(clingo.Function("soften_hard"), True)]   # Hard constraints are relaxed to soft
+        disable_soften_hard = [(Function("soften_hard"), False)]  # Hard constraints are enabled
+        enable_soften_hard  = [(Function("soften_hard"), True)]   # Hard constraints are relaxed to soft
         assumptions = enable_soften_hard if self.soften_hard else disable_soften_hard
+        step = 0
         while True:
+            step += 1
+
+            if self.strategy == "lnps":
+                for atom in prev_pritz_atoms:
+                    self.control.release_external(atom)
+                    self.debug_print(f"release external {atom}.")
+
+                ext_statements = "#show prioritized/2."
+                curr_pritz_atoms = []
+                self.debug_print("External Statements:")
+                self.debug_print("#program external(t).")
+                for target in curr_pritz_targets:
+                    atom = Function("prioritized", [target, Number(step)])
+                    curr_pritz_atoms.append(atom)
+                    ext_statements += f"#external {atom}."
+                    self.debug_print(f"#external {atom}.")
+                self.control.add("external", ["t"], ext_statements)
+                self.control.ground([("external", [Number(step)])])
+                self.control.ground([("prioritized", [Number(step)])])
+                self.debug_print(f"Grounding external({step}) and heuristic({step})")
+
+                self.debug_print(f"Assigning prioritized atoms for step {step}")
+                for atom in curr_pritz_atoms:
+                    self.control.assign_external(atom, True)
+                    self.debug_print(f"assign external {atom} True.")
+
+                prev_pritz_atoms = curr_pritz_atoms.copy()
+
+                print("----------------------------------------------------------------------")
+                print(f"Iteration #{step}")
+                print("----------------------------------------------------------------------")
+
             with self.control.solve(assumptions=assumptions, on_model=self.on_model, on_finish=self.on_finish, async_=True) as handle:
                 with condition:
                     while not stop_event.is_set():
@@ -87,14 +169,34 @@ class NSPSolver:
                 if stop_event.is_set():
                     handle.cancel()  # Cancel the solving process if a stop signal was set
                 result = handle.get()  # Retrieve the final solving result
-                if result.unsatisfiable and assumptions == disable_soften_hard:
-                    print("UNSATISFIABLE")
-                    print("Hard constraints are relaxed to soft ones.")
+                if result.unsatisfiable:
+                    if assumptions == disable_soften_hard:
+                        print("UNSATISFIABLE")
+                        print("Hard constraints are relaxed to soft ones.")
+                        stop_event.clear()
+                        assumptions = enable_soften_hard
+                        self.soften_hard = True
+                        continue
+                    else:
+                        break
+                # print(f"result.exhausted: {result.exhausted}, result.interrupted: {result.interrupted}")
+                if self.is_lnps_time_expired and not result.exhausted and result.satisfiable:
+                    curr_pritz_targets = []
+                    for atom in self.last_model:
+                        if atom.match("ext_assigned", 3):
+                            day = atom.arguments[1].number
+                            if self.table_width and 0 <= day < self.table_width:
+                                curr_pritz_targets.append(atom)
                     stop_event.clear()
-                    assumptions = enable_soften_hard
-                    self.soften_hard = True
+                    self.is_lnps_time_expired = False
+                    self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
+                    self.lnps_timer.start()
                     continue
+
+                if self.timeout:
+                    timer.cancel()
                 break
+
 
         def get_cost():
             s = self.control.statistics['summary']
@@ -141,19 +243,31 @@ class NSPSolver:
         """
         elapsed = time.time() - self.start_time
 
+        changed_shifts = None
+        self.last_model = list(model.symbols(shown=True))
+        self.last_model.sort()
+        str_atoms = []
+        for atom in self.last_model:
+            str_atoms.append(str(atom))
+            if atom.match("changed_shifts", 1):
+                changed_shifts = atom.arguments[0].number
+            elif atom.match("table_width", 1):
+                self.table_width = atom.arguments[0].number
+
         header = f"Answer: {model.number}, Cost: {' '.join(map(str, model.cost))}, Elapsed: {elapsed:.1f}s"
+        if changed_shifts != None:
+            header += f", #Changed: {changed_shifts}"
         if self.soften_hard:
             header = Fore.YELLOW + header + ", Soften hard constraints" + Style.RESET_ALL
         if self.verbose > 0 and not self.show_table:
             print(header)
 
         if self.output:
-            atoms = "\n".join([str(atom) + "." for atom in model.symbols(atoms=True)])
             with open(self.output, 'w') as f:
                 fcntl.flock(f, fcntl.LOCK_EX)
                 try:
                     f.write(f"header(\"{header}\").\n")
-                    f.write(atoms)
+                    f.write(".\n".join(str_atoms))
                 finally:
                     fcntl.flock(f, fcntl.LOCK_UN)
 
@@ -162,18 +276,20 @@ class NSPSolver:
             print("\n".join(str(atom) for atom in model.symbols(shown=True)))
         elif self.show_model == "all":
             print("All Atoms:")
-            print("\n".join(str(atom) for atom in model.symbols(atoms=True)))
+            print("\n".join(str_atoms))
 
         if self.show_table:
-            table = make_shift_table(model.symbols(atoms=True), self.last_table)
+            table = make_shift_table(self.last_model)
             if table:
-                if table.num_changed != None:
-                    header += f", #Changed: {table.num_changed}"
                 print(header)
                 table.display()
-                self.last_table = table
             else:
                 print("Error: model contains no shift assignments (ext_assigned/3).")
+
+        if self.strategy == "lnps":
+            self.lnps_timer.cancel()
+            self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
+            self.lnps_timer.start()
 
     def on_finish(self, result):
         stop_event.set()
@@ -182,6 +298,13 @@ class NSPSolver:
 
     def time_expired(self):
         print("\nTime limit exceeded! Stopping Clingo...")
+        stop_event.set()
+        with condition:
+            condition.notify_all()
+
+    def lnps_time_expired(self):
+        print("\nLNPS time limit exceeded! Stopping Clingo...")
+        self.is_lnps_time_expired = True
         stop_event.set()
         with condition:
             condition.notify_all()
@@ -213,6 +336,11 @@ class NSPSolver:
                 if self.stats <= 1 and value == 0:
                     continue
                 print(" " * indent + f"{key}: {value}")
+
+
+    def debug_print(self, *args, **kwargs):
+        if self.verbose > 1:
+            print(*args, **kwargs)
 
 # Gounding helper functions
 class NSPContext:
@@ -265,24 +393,31 @@ def main():
         help="Display output in monochrome (no colors)."
     )
 
-    # File and string input arguments
+    # Output file
     parser.add_argument(
         "-o", "--output",
         type=str, default="found-model.lp", metavar="MODEL_FILE",
         help="Output file for models (default: found-model.lp)"
     )
+
+    # LNPS search strategy
     parser.add_argument(
-        "-p", "--prioritize",
-        nargs="?", type=str, const="found-model.lp", metavar="MODEL_FILE",
-        help="Specify the file containing the model to prioritize during search"
+        "--lnps",
+        action="store_true",
+        help="Enable LNPS mode (without destroy). If specified, LNPS will be used."
     )
     parser.add_argument(
-        "-l", "--legacy",
-        type=str, default="legacy-model.lp", metavar="LEGACY_FILE",
-        help="Specify the legacy model file when use prioritizing search"
+        "--lnps-interval",
+        type=int, default=10, metavar="SECONDS",
+        help="Specify the interval length in terms of elapsed time since the last solution found"
     )
 
-    # List-based arguments
+    # Initial assignment control
+    parser.add_argument(
+        "-i", "--init-model",
+        type=str, nargs="?", const="found-model.lp", default=None,
+        help="Specify the initial model file. If not specified, found-model.lp is used as default."
+    )
     parser.add_argument(
         "-c", "--clear",
         type=str, action="append", default=[], metavar="AREA_DEF",
@@ -322,23 +457,14 @@ def main():
     # Set color mode
     colorama.init(strip=args.mono)
 
-    # If a legacy model file is specified, extract the assigned predicates from the model
-    # and prioritize them.
-    soften_hard = False
-    last_table = None
-    if args.prioritize:
-        clear_rects = parse_rectangles(args.clear)
-        fixed_rects = parse_rectangles(args.fixed)
+    # Search strategy
+    strategy = "default"
+    if args.lnps:
+        strategy = "lnps"
 
-        # print(f"clear: {clear_rects}")
-        # print(f"fixed: {fixed_rects}")
-
-        soften_hard = make_legacy_model(args.prioritize, clear_rects, fixed_rects, args.legacy)
-        args.files.append(args.legacy)
-        clingo_args.append("--heuristic=Domain")
-
-        atoms = read_model(args.prioritize)
-        last_table = make_shift_table(atoms)
+    # Parse the fixed and clear areas for the initial assignment
+    fixed_rects = parse_rectangles(args.fixed)
+    clear_rects = parse_rectangles(args.clear)
 
     # Add signal hander
     signal.signal(signal.SIGINT, signal_handler)
@@ -356,10 +482,13 @@ def main():
         files=args.files,
         output=args.output,
         clingo_options=clingo_args,
-        soften_hard=soften_hard,
+        strategy=strategy,
+        lnps_interval=args.lnps_interval,
+        init_model_file=args.init_model,
+        fixed_rects=fixed_rects,
+        clear_rects=clear_rects,
         show_model=show_model,
         show_table=args.s,
-        last_table=last_table,
         timeout=args.timeout,
         verbose=args.verbose,
         stats=args.stats,
@@ -368,6 +497,7 @@ def main():
     # Load logic programs and solve
     solver.load_programs()
     solver.solve()
+    print("Done.")
 
 if __name__ == "__main__":
     main()

@@ -23,6 +23,7 @@ num_curr_tue_shifts(N, X) :-
 num_tue_shifts(N, P, C, P+C) :-
     num_past_tue_shifts(N, P),
     num_curr_tue_shifts(N, C).
+#show num_tue_shifts/4.
 
 % Reward if Tuesday LD and SE shifts are assigned to nurses with fewer past consecutive rests
 achievement(tue_shifts(N), PAST_MAX - PAST_OWN + 1) :-

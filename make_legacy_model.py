@@ -2,7 +2,10 @@
 import argparse
 import re
 import sys
-from showmodel import read_model
+from typing import List, Union
+
+from clingo import Symbol
+from showmodel import parse_model, read_model
 
 class AssignmentRectangle:
     """Class representing a 2D rectangle for shift assignments"""
@@ -91,35 +94,39 @@ def should_process(assigned, rectangles):
                 return True
     return False
 
-def make_legacy_model(in_file: str, clear_rects, fixed_rects, out_file: str):
+def make_legacy_model(in_data: Union[str, List[str]], fixed_rects, clear_rects, out_file: str = None):
     soften_hard = False
     table_width = 28
-    atoms = read_model(in_file)
+    if isinstance(in_data, str):
+        atoms = read_model(in_data)
+    else:
+        atoms = parse_model(in_data)
     atoms.sort()
-    with open(out_file, 'w') as out:
-        # output legacy/1 for all ext_assigned/3 atoms
-        for atom in atoms:
-            if atom.match("ext_assigned", 3):
-                print(f'legacy({atom}).', file=out)
-            elif atom.match("soften_hard", 0):
-                soften_hard = True
-            elif atom.match("table_width", 1):
-                table_width = atom.arguments[0].number
-        # output fixed/1 for all ext_assigned/3 atoms that are fixed
-        for atom in atoms:
-            if atom.match("ext_assigned", 3) and should_process(atom, fixed_rects):
-                print(f'fixed({atom}).', file=out)
-        # output prioritized/1 for all ext_assigned/3 atoms that are prioritized
-        for atom in atoms:
-            if atom.match("ext_assigned", 3) and not should_process(atom, clear_rects) and not should_process(atom, fixed_rects):
-                day = atom.arguments[1].number
-                if 0 <= day < table_width:
-                    print(f'prioritized({atom}).', file=out)
-        # output cleared/1 for all ext_assigned/3 atoms that are cleared
-        for atom in atoms:
-            if atom.match("ext_assigned", 3) and should_process(atom, clear_rects):
-                print(f'cleared({atom}).', file=out)  # for confirmation
-    return soften_hard
+    for atom in atoms:
+        if atom.match("soften_hard", 0):
+            soften_hard = True
+        elif atom.match("table_width", 1):
+            table_width = atom.arguments[0].number
+    fixed_atoms = []
+    for atom in atoms:
+        if atom.match("ext_assigned", 3) and should_process(atom, fixed_rects):
+            fixed_atoms.append(atom)
+    prioritized_atoms = []
+    for atom in atoms:
+        if atom.match("ext_assigned", 3) and not should_process(atom, clear_rects) and not should_process(atom, fixed_rects):
+            day = atom.arguments[1].number
+            if 0 <= day < table_width:
+                prioritized_atoms.append(atom)
+    if out_file:
+        with open(out_file, 'w') as out:
+            # output fixed/1 for all ext_assigned/3 atoms that are fixed
+            for atom in fixed_atoms:
+                print(f"fixed({atom}).", file=out)
+            # output prioritized/1 for all ext_assigned/3 atoms that are prioritized
+            for atom in prioritized_atoms:
+                print(f"prioritized({atom}).", file=out)
+
+    return (soften_hard, fixed_atoms, prioritized_atoms)
 
 def main():
     parser = argparse.ArgumentParser(description="reads a model file, extracts shift assignments, and outputs them in legacy format.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -132,22 +139,11 @@ def main():
 
     args = parser.parse_args()
 
-    clear_rectangles = parse_rectangles(args.clear)
     fixed_rectangles = parse_rectangles(args.fixed)
-    # print(f"clear: {clear_rectangles}")
+    clear_rectangles = parse_rectangles(args.clear)
     # print(f"fixed: {fixed_rectangles}")
-    make_legacy_model(args.file, clear_rectangles, fixed_rectangles, args.output)
-
-    # atoms = read_model(args.file)
-    # with open(args.output, 'w') as out:
-    #     for atom in atoms:
-    #         if (atom.match("assigned", 2) or atom.match("assigned", 3)):
-    #             if should_process(atom, fixed_rectangles):
-    #                 print(f'fixed({atom}).', file=out)
-    #             elif not should_process(atom, clear_rectangles):
-    #                 print(f'legacy({atom}).', file=out)
-    #             else:
-    #                 print(f'cleared({atom}).', file=out)  # for confirmation
+    # print(f"clear: {clear_rectangles}")
+    make_legacy_model(args.file, fixed_rectangles, clear_rectangles, args.output)
 
 if __name__ == "__main__":
     main()

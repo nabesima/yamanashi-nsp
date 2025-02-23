@@ -86,7 +86,7 @@ SHIFT_COLOR = {
 
 @dataclass
 class ShiftTable:
-    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, rewards, penalty_map, reward_map, request_map, old_table, prioritized, fixed, cleared):
+    def __init__(self, title: str, main_df: pd.DataFrame, right_df: pd.DataFrame, bottom_df: pd.DataFrame, penalties, rewards, penalty_map, reward_map, request_map, prioritized, fixed, cleared):
         self.title = title
         self.main_df = main_df
         self.right_df = right_df
@@ -136,9 +136,6 @@ class ShiftTable:
 
         # ------------------------------------------------------------
         # Make the main table
-        self.num_changed = None
-        if prioritized:
-            self.num_changed = 0
         for no, row in self.main_df.iterrows():
             style = Fore.BLACK + Back.RED if self.has_penalty(no, 'index') else None
             self.cells[no] = {'index': Cell(str(no), style=style, right_border=True)}
@@ -154,12 +151,8 @@ class ShiftTable:
                     style = Fore.BLACK + Back.GREEN
                 if self.has_penalty(no, rd):
                     style = Fore.BLACK + Back.RED
-                # if old_table and old_table.cells[no][rd].text != s:
-                #     style += Fore.BLACK + Back.YELLOW
                 if is_changed(no, rd, s):
                     style += Fore.BLACK + Back.YELLOW
-                if is_changed(no, rd, s):
-                    self.num_changed += 1
                 self.cells[no][rd] = Cell(s, style=style, right_border=border)
 
         self.cells['BottomBorder'] = {'index': Border()}
@@ -224,8 +217,6 @@ class ShiftTable:
 
     def display(self):
         if self.title:
-            if self.num_changed != None:
-                self.title += f", #Changed: {self.num_changed}"
             print(self.title)
         for row in self.cells:
             print(''.join(map(lambda c: c.to_s(), self.cells[row].values())))
@@ -358,7 +349,7 @@ def conv_symbol(sym: clingo.Symbol, type):
         return None
     raise ValueError(f'Unexpected type: {type} for {sym}')
 
-def make_shift_table(atoms: list[clingo.Symbol], old_table: Optional[ShiftTable]=None):
+def make_shift_table(atoms: list[clingo.Symbol]):
     # ------------------------------------------------------------
     # Parse atoms
     model = {}
@@ -375,6 +366,7 @@ def make_shift_table(atoms: list[clingo.Symbol], old_table: Optional[ShiftTable]
             if arg:
                 model[atom.name].append(arg)
         elif len(atom.arguments) == len(parse_rule):
+            # print(f"atom = {atom}")
             args = {}
             for idx, arg in enumerate(atom.arguments):
                 name, type = parse_rule[idx]
@@ -543,7 +535,7 @@ def make_shift_table(atoms: list[clingo.Symbol], old_table: Optional[ShiftTable]
     if 'cleared' in model:
         cleared = model['cleared']
     return ShiftTable(title, main_df, right_df, bottom_df, penalties, rewards, penalty_map, reward_map, request_map,
-                      old_table, prioritized, fixed, cleared)
+                      prioritized, fixed, cleared)
 
 def add(pmap, row, col, p):
     if row not in pmap:
@@ -641,17 +633,15 @@ def read_model(file):
 def monitor_file(file, interval):
     """Monitor the file for changes and reload when updated."""
     last_modified = None
-    last_table = None
     while True:
         try:
             current_modified = os.path.getmtime(file)
             if current_modified != last_modified:
                 last_modified = current_modified
                 atoms = read_model(file)
-                table = make_shift_table(atoms, last_table)
+                table = make_shift_table(atoms)
                 if table:
                     table.display()
-                    last_table = table
                 else:
                     print(f"Error: file '{file}' contains no shift assignments (ext_assigned/3).")
             if interval > 0:

@@ -88,25 +88,23 @@ violation(dummy, dummy).
 penalty(TYPE, CAUSE, LIM, VAL, W, P) :-
     violation(TYPE, CAUSE, LIM, VAL),
     W = (LIM - VAL) * (LIM - VAL),
-    priority(TYPE, CAUSE, P).
+    priority(TYPE, CAUSE, P),
+    not no_hard_priority.  % for comparison experiments
 penalty(TYPE, CAUSE, 0, 0, 1, P) :-
     violation(TYPE, CAUSE),
-    priority(TYPE, CAUSE, P).
+    priority(TYPE, CAUSE, P),
+    not no_hard_priority.  % for comparison experiments
 
 % for obj function
-penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P), not no_hard_priority.
-
-% for experiments with minimum perturbation
-penalty(soft, CAUSE, W, P) :- penalty(soft, CAUSE, _, _, W, P), no_hard_priority.
-penalty(hard, CAUSE, W*10, P) :- penalty(hard, CAUSE, _, _, W, P), no_hard_priority.
-penalty(hard_sp, CAUSE, W*10, P) :- penalty(hard_sp, CAUSE, _, _, W, P), no_hard_priority.
+penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
 
 %----------------------------------------------------------------------
 % Reward
 %----------------------------------------------------------------------
 reward(CAUSE, W, P) :-
     achievement(CAUSE, W),
-    priority(CAUSE, P).
+    priority(CAUSE, P),
+    not no_hard_priority.  % for comparison experiments
 
 % Suppresses warnings when there are no achievement constraints
 achievement(dummy, dummy).
@@ -134,8 +132,34 @@ priority(C, P) :- dep_priority(C, P).
 #maximize { WEGIHT@PRIORITY,CAUSE : reward(CAUSE, WEGIHT, PRIORITY) }.
 
 %----------------------------------------------------------------------
+% Resolving related
+%----------------------------------------------------------------------
+% Reproduce the assignment if there are fixed shift requests.
+:- fixed(ext_assigned(N, D, S1)), ext_assigned(N, D, S2), S1 != S2.
+
+% Counts changed shifts from the initial assignment
+changed_shifts(X) :- X = { not ext_assigned(N, D, S) : prioritized(ext_assigned(N, D, S)) }, prioritized(_).
+
+%----------------------------------------------------------------------
 % Output related
 %----------------------------------------------------------------------
 % Date
 out_date(D, FD, W)    :- base_date(D, FD, W), not public_holiday(D).
 out_date(D, FD, "PH") :- base_date(D, FD, W), public_holiday(D).
+
+#show first_full_date/1.
+#show table_width/1.
+#show changed_shifts/1.
+#show ext_assigned/3.
+#show out_date/3.
+#show staff/5.
+#show staff_group/2.
+#show penalty/6.
+#show reward/3.
+#show pos_request/3.
+#show neg_request/3.
+#show horizontal_constraint_type/1.
+#show vertical_constraint_type/3.
+#show num_weekend_offs/4.
+#show num_public_holiday_offs/4.
+#show num_consecutive_rests/4.
