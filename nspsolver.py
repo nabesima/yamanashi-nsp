@@ -303,7 +303,7 @@ class NSPSolver:
             condition.notify_all()
 
     def time_expired(self):
-        print("\nTime limit exceeded! Stopping Clingo...")
+        print(f"\nTime limit ({self.timeout}) exceeded! Stopping Clingo...")
         stop_event.set()
         with condition:
             condition.notify_all()
