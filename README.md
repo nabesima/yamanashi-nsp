@@ -301,17 +301,16 @@ option).
 ### Resuming Search After Interruption
 
 Even if the execution of `nsp-solver.py` is interrupted (e.g., by pressing
-`Ctrl+C`), you can effectively resume the search using the `-p` option. This
-option prioritizes and reproduces the assignments of the assigned predicates
-contained in the `found-model.lp` file, enabling you to continue the search to
-some extent.
-
+`Ctrl+C`),  you can efficiently resume the search by using the -i option along
+with `nsp-prioritize.lp`.  This approach assigns priority to the predicates with
+assignments recorded in the found-model.lp file, effectively reproducing those
+assignments and allowing the search to continue from where it left off.
 
 ```shell
 ./nspsolver.py nsp.lp /path/to/nsp-instance.lp
 Ctrl+C detected! Stopping Clingo...
 
-./nspsolver.py nsp.lp /path/to/nsp-instance.lp -p
+./nspsolver.py nsp.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp -i
 ```
 
 ## Solving Directly with Clingo
@@ -347,17 +346,17 @@ option).
 Even if the execution of Clingo is interrupted (e.g., by pressing `Ctrl+C`), you
 can effectively resume the search by reusing the last model. The script
 `make_legacy_model.py` extracts the last model from the log file and saves it as
-`legacy-model.lp`. Afterward, you can use Clingo with the `legacy-model.lp` file
-and the `--heuristic=Domain` option. This setup prioritizes and reproduces the
-assigned predicates contained in the `legacy-model.lp` file, allowing you to
-continue the search to some extent.
+`legacy-model.lp`. Afterward, you can use Clingo with the `nsp-prioritize.lp`
+and `legacy-model.lp` files and the `--heuristic=Domain` option. This setup
+prioritizes and reproduces the assigned predicates contained in the
+`legacy-model.lp` file, allowing you to continue the search to some extent.
 
 ```shell
 clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
 [Ctrl+C pressed]
 
 ./make_legacy_model.py nsp.log -o legacy-model.lp
-clingo nsp.lp cli.lp /path/to/nsp-instance.lp legacy-model.lp --heuristic=Domain > nsp.log
+clingo nsp.lp cli.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp legacy-model.lp --heuristic=Domain > nsp.log
 ```
 
 <br>
@@ -368,10 +367,6 @@ The file **[`nsp.lp`](./nsp.lp)** serves as the ASP encoding for the Nurse Sched
 
 - **[`nsp-prepro.lp`](./encoding/nsp-prepro.lp)**:
   - Handles preprocessing tasks and prepares data before solving the NSP.
-
-- **[`nsp-restart.lp`](./encoding/nsp-restart.lp)**:
-  - Supports prioritized search to resume solving based on the last found model after an interruption.
-
 - **[`nsp-encoding.lp`](./encoding/nsp-encoding.lp)**:
   - Further includes a modular set of constraint files, detailed below.
 
@@ -440,8 +435,7 @@ function.
 The file **[`nsp.lp`](./nsp.lp)** includes all constraints for NSP. The file
 **[`nsp-basic-only.lp`](./nsp-basic-only.lp)** includes only the core
 constraints from [`nsp-01-basic.lp`](./encoding/nsp-01-basic.lp) along with
-preprocessing ([`nsp-prepro.lp`](./encoding/nsp-prepro.lp)) and restart
-mechanisms ([`nsp-restart.lp`](./encoding/nsp-restart.lp)).
+preprocessing ([`nsp-prepro.lp`](./encoding/nsp-prepro.lp)).
 
 If you want to add constraints selectively, start with
 **[`nsp-basic-only.lp`](./nsp-basic-only.lp)** and include additional constraint
