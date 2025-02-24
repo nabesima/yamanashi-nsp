@@ -273,7 +273,7 @@ class NSPSolver:
                 fcntl.flock(f, fcntl.LOCK_EX)
                 try:
                     f.write(f"header(\"{header}\").\n")
-                    f.write(".\n".join(str_atoms))
+                    f.write(".\n".join(str_atoms) + ".")
                 finally:
                     fcntl.flock(f, fcntl.LOCK_UN)
 
