@@ -50,6 +50,7 @@ class NSPSolver:
         self.stats = stats
 
         self.soften_hard = False
+        self.must_wait_for_finding_model = init_model_file == None
         self.fixed_targets = []
         self.pritz_targets = []
         if init_model_file:
@@ -251,6 +252,7 @@ class NSPSolver:
         changed_shifts = None
         self.last_model = list(model.symbols(shown=True))
         self.last_model.sort()
+        self.must_wait_for_finding_model = False
         str_atoms = []
         for atom in self.last_model:
             str_atoms.append(str(atom))
@@ -309,6 +311,11 @@ class NSPSolver:
             condition.notify_all()
 
     def lnps_time_expired(self):
+        print(f"must_wait_for_finding_model = {self.must_wait_for_finding_model}")
+        if self.must_wait_for_finding_model:
+            self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
+            self.lnps_timer.start()
+            return
         print(f"\nLNPS time limit ({round(self.lnps_interval, 1)}) exceeded! Stopping Clingo...")
         self.is_lnps_time_expired = True
         stop_event.set()
