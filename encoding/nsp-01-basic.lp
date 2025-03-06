@@ -88,12 +88,10 @@ violation(dummy, dummy).
 penalty(TYPE, CAUSE, LIM, VAL, W, P) :-
     violation(TYPE, CAUSE, LIM, VAL),
     W = (LIM - VAL) * (LIM - VAL),
-    priority(TYPE, CAUSE, P),
-    not no_hard_priority.  % for comparison experiments
+    priority(TYPE, CAUSE, P).
 penalty(TYPE, CAUSE, 0, 0, 1, P) :-
     violation(TYPE, CAUSE),
-    priority(TYPE, CAUSE, P),
-    not no_hard_priority.  % for comparison experiments
+    priority(TYPE, CAUSE, P).
 
 % for obj function
 penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
@@ -103,8 +101,7 @@ penalty(TYPE, CAUSE, W, P) :- penalty(TYPE, CAUSE, _, _, W, P).
 %----------------------------------------------------------------------
 reward(CAUSE, W, P) :-
     achievement(CAUSE, W),
-    priority(CAUSE, P),
-    not no_hard_priority.  % for comparison experiments
+    priority(CAUSE, P).
 
 % Suppresses warnings when there are no achievement constraints
 achievement(dummy, dummy).
@@ -116,9 +113,9 @@ achievement(dummy, dummy).
 %% for violations
 priority(soft, C, 1) :- cause_type(C), not dep_priority(C, _).
 priority(soft, C, P) :- dep_priority(C, P).
-priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _), not no_hard_priority.
+priority(hard, C, 10) :- cause_type(C), not dep_priority(C, _).
 % Assign priorities to relaxed hard constraints based on soft constraint priorities
-priority(hard, C, P) :- cause_type(C), dep_priority(C, Q), P = 10 + Q - 1, not no_hard_priority.
+priority(hard, C, P) :- cause_type(C), dep_priority(C, Q), P = 10 + Q - 1.
 %% for achivements
 priority(C, 1) :- cause_type(C), not dep_priority(C, _).
 priority(C, P) :- dep_priority(C, P).
