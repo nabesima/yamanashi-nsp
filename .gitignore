@@ -7,8 +7,6 @@ TODO.md
 # temporary files
 found-model.lp
 legacy-model.lp
-gen-instances/tmp-past
-gen-instances/tmp-curr
-comparison/tmp-past
-comparison/tmp-curr
+gen-instances/tmp-*
+comparison/tmp-*
 comparison/old
