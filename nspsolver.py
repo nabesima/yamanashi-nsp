@@ -311,7 +311,7 @@ class NSPSolver:
             condition.notify_all()
 
     def lnps_time_expired(self):
-        print(f"must_wait_for_finding_model = {self.must_wait_for_finding_model}")
+        # print(f"must_wait_for_finding_model = {self.must_wait_for_finding_model}")
         if self.must_wait_for_finding_model:
             self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
             self.lnps_timer.start()
