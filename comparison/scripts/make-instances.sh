@@ -47,14 +47,14 @@ for NURSES in "${NURSES_LIST[@]}"; do
                     FORBIDDEN_PAIRS=$PAIR
                     OUTPUT_FILE="${OUTPUT_DIR}/nsp-n${NURSES}-d${DAYS}-r${STAFF_REQUEST}-rp${RECOMMENDED_PAIRS}-fp${FORBIDDEN_PAIRS}-s${SEED}.lp"
                     echo "Generating NSP instance: Nurses=${NURSES}, Days=${DAYS}, Staff Request=${STAFF_REQUEST}, Recommended Pairs=${RECOMMENDED_PAIRS}, Forbidden Pairs=${FORBIDDEN_PAIRS}, Schedule Offset=${SCHEDULE_OFFSET}, Seed=${SEED}"
-                    ../gennsp.py -n "$NURSES" -d "$DAYS" -s "$START_DATE" -r "$STAFF_REQUEST" -rp "$RECOMMENDED_PAIRS" -fp "$FORBIDDEN_PAIRS" --schedule-offset "$SCHEDULE_OFFSET" --seed "$SEED" > "$OUTPUT_FILE"
+                    ../bin/gennsp.py -n "$NURSES" -d "$DAYS" -s "$START_DATE" -r "$STAFF_REQUEST" -rp "$RECOMMENDED_PAIRS" -fp "$FORBIDDEN_PAIRS" --schedule-offset "$SCHEDULE_OFFSET" --seed "$SEED" > "$OUTPUT_FILE"
                 done
             else
                 RECOMMENDED_PAIRS=0
                 FORBIDDEN_PAIRS=0
                 OUTPUT_FILE="${OUTPUT_DIR}/nsp-n${NURSES}-d${DAYS}-r${STAFF_REQUEST}-rp${RECOMMENDED_PAIRS}-fp${FORBIDDEN_PAIRS}-s${SEED}.lp"
                 echo "Generating NSP instance: Nurses=${NURSES}, Days=${DAYS}, Staff Request=${STAFF_REQUEST}, Recommended Pairs=${RECOMMENDED_PAIRS}, Forbidden Pairs=${FORBIDDEN_PAIRS}, Schedule Offset=${SCHEDULE_OFFSET}, Seed=${SEED}"
-                ../gennsp.py -n "$NURSES" -d "$DAYS" -s "$START_DATE" -r "$STAFF_REQUEST" -rp "$RECOMMENDED_PAIRS" -fp "$FORBIDDEN_PAIRS" --schedule-offset "$SCHEDULE_OFFSET" --seed "$SEED" > "$OUTPUT_FILE"
+                ../bin/gennsp.py -n "$NURSES" -d "$DAYS" -s "$START_DATE" -r "$STAFF_REQUEST" -rp "$RECOMMENDED_PAIRS" -fp "$FORBIDDEN_PAIRS" --schedule-offset "$SCHEDULE_OFFSET" --seed "$SEED" > "$OUTPUT_FILE"
             fi
         done
     done
