@@ -145,6 +145,7 @@ out_date(D, FD, W)    :- base_date(D, FD, W), not public_holiday(D).
 out_date(D, FD, "PH") :- base_date(D, FD, W), public_holiday(D).
 
 #show first_full_date/1.
+#show base_date/3.
 #show table_width/1.
 #show changed_shifts/1.
 #show ext_assigned/3.
