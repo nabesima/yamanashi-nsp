@@ -188,7 +188,7 @@ chosen specifically because public holidays fall during the second and third
 weeks of September, enabling validation of the constraints related to public
 holidays.
 
-All artificial instances were generated using the script `gennsp.py`. Since the
+All artificial instances were generated using the script `bin/gennsp.py`. Since the
 generated NSP instances do not include past shift data, an additional NSP
 instance is created to generate the previous schedule. This previous schedule is
 then solved using Clingo for a fixed time limit to produce past shift data. This
@@ -232,17 +232,17 @@ where:
 
 ## Using `nspsolver.py`
 
-`nspsolver.py` is a script for solving NSP instances. If the given NSP instance
-is unsatisfiable, `nspsolver.py` automatically relaxes hard constraints into
-soft constraints and solves the problem again (internally by defining the
+`bin/nspsolver.py` is a script for solving NSP instances. If the given NSP
+instance is unsatisfiable, `bin/nspsolver.py` automatically relaxes hard constraints
+into soft constraints and solves the problem again (internally by defining the
 predicate `soften_hard` and retrying). The script runs Clingo internally. Any
-options not directly supported by `nspsolver.py` are passed to Clingo. For
+options not directly supported by `bin/nspsolver.py` are passed to Clingo. For
 example, specifying the -t 4 option enables solving with four threads in
 parallel.
 
 **Typical Usage**
 ```shell
-./nspsolver.py nsp.lp /path/to/nsp-instance.lp -s
+bin/nspsolver.py encoding/nsp.lp /path/to/nsp-instance.lp -s
 ```
 `nsp.lp` is the ASP encoding for NSP. The `-s` option generates and displays a
 shift table each time a model is found.
@@ -282,16 +282,16 @@ Below is an example of the shift table output.
 
 ### Displaying Models on Demand
 
-If the `nspsolver.py` script outputs many models, the output may scroll quickly,
-making it difficult to follow. The `nspsolver.py` script writes each model to
-the file `found-model.lp` (or a file specified with the `-o` option) as it is
-found, with only the latest model being retained. The model file can be
-displayed using the `showmodel.py` script. This allows you to run `nspsolver.py`
-on one terminal and use another terminal to monitor the latest model using
-`showmodel.py`.
+If the `bin/nspsolver.py` script outputs many models, the output may scroll
+quickly, making it difficult to follow. The `bin/nspsolver.py` script writes
+each model to the file `found-model.lp` (or a file specified with the `-o`
+option) as it is found, with only the latest model being retained. The model
+file can be displayed using the `bin/showmodel.py` script. This allows you to
+run `bin/nspsolver.py` on one terminal and use another terminal to monitor the
+latest model using `bin/showmodel.py`.
 ```shell
-./nspsolver.py nsp.lp /path/to/nsp-instance.lp  # Run in one terminal
-./showmodel.py                                  # Run in another terminal
+bin/nspsolver.py encoding/nsp.lp /path/to/nsp-instance.lp  # Run in one terminal
+bin/showmodel.py                                           # Run in another terminal
 ```
 To view models as Clingo finds them, use the `-f` option of `showmodel.py`. This
 checks the model file for updates and displays the latest model every second
@@ -300,70 +300,72 @@ option).
 
 ### Resuming Search After Interruption
 
-Even if the execution of `nsp-solver.py` is interrupted (e.g., by pressing
+Even if the execution of `bin/nsp-solver.py` is interrupted (e.g., by pressing
 `Ctrl+C`),  you can efficiently resume the search by using the -i option along
-with `nsp-prioritize.lp`.  This approach assigns priority to the predicates with
-assignments recorded in the found-model.lp file, effectively reproducing those
-assignments and allowing the search to continue from where it left off.
+with `encoding/nsp-prioritize.lp`.  This approach assigns priority to the
+predicates with assignments recorded in the found-model.lp file, effectively
+reproducing those assignments and allowing the search to continue from where it
+left off.
 
 ```shell
-./nspsolver.py nsp.lp /path/to/nsp-instance.lp
+bin/nspsolver.py encoding/nsp.lp /path/to/nsp-instance.lp
 Ctrl+C detected! Stopping Clingo...
 
-./nspsolver.py nsp.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp -i
+bin/nspsolver.py encoding/nsp.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp -i
 ```
 
 ## Solving Directly with Clingo
 For users familiar with Clingo, you can directly solve an NSP instance as follows:
 
 ```shell
-clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
+clingo encoding/nsp.lp encoding/cli.lp /path/to/nsp-instance.lp > nsp.log
 ```
 
-`cli.lp` includes Python scripts (`nsp-prepro-helper.lp`) for pre-processing and
-introduces the constant `soften_hard_on` to control the relaxation of hard
-constraints. By default, hard constraints are enabled. If you specify `-c
-soften_hard_on=1` in Clingo's command line arguments, the hard constraints will
-be relaxed into soft constraints.
+`encoding/cli.lp` includes Python scripts (`encoding/nsp-prepro-helper.lp`) for
+pre-processing and introduces the constant `soften_hard_on` to control the
+relaxation of hard constraints. By default, hard constraints are enabled. If you
+specify `-c soften_hard_on=1` in Clingo's command line arguments, the hard
+constraints will be relaxed into soft constraints.
 
 ```shell
-clingo nsp.lp cli.lp /path/to/nsp-instance.lp -c soften_hard_on=1 > nsp.log
+clingo encoding/nsp.lp encoding/cli.lp /path/to/nsp-instance.lp -c soften_hard_on=1 > nsp.log
 ```
 
-`showmodel.py` constructs and displays a shift table from the last model in the
-log file.
+`bin/showmodel.py` constructs and displays a shift table from the last model in
+the log file.
 
 ```shell
-./showmodel.py nsp.log
+bin/showmodel.py nsp.log
 ```
-To view models as Clingo finds them, use the -f option of showmodel.py. This
-checks the model file for updates and displays the latest model every second
-(the check interval can be adjusted by specifying an argument for the -f
-option).
+To view models as Clingo finds them, use the `-f` option of `bin/showmodel.py`.
+This checks the model file for updates and displays the latest model every
+second (the check interval can be adjusted by specifying an argument for the
+`-f` option).
 
 ### Resuming Search After Interruption
 
 Even if the execution of Clingo is interrupted (e.g., by pressing `Ctrl+C`), you
 can effectively resume the search by reusing the last model. The script
-`make_legacy_model.py` extracts the last model from the log file and saves it as
-`legacy-model.lp`. Afterward, you can use Clingo with the `nsp-prioritize.lp`
-and `legacy-model.lp` files and the `--heuristic=Domain` option. This setup
-prioritizes and reproduces the assigned predicates contained in the
-`legacy-model.lp` file, allowing you to continue the search to some extent.
+`bin/make_legacy_model.py` extracts the last model from the log file and saves
+it as `legacy-model.lp`. Afterward, you can use Clingo with the
+`encoding/nsp-prioritize.lp` and `legacy-model.lp` files and the
+`--heuristic=Domain` option. This setup prioritizes and reproduces the assigned
+predicates contained in the `legacy-model.lp` file, allowing you to continue the
+search to some extent.
 
 ```shell
-clingo nsp.lp cli.lp /path/to/nsp-instance.lp > nsp.log
+clingo encoding/nsp.lp encoding/cli.lp /path/to/nsp-instance.lp > nsp.log
 [Ctrl+C pressed]
 
-./make_legacy_model.py nsp.log -o legacy-model.lp
-clingo nsp.lp cli.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp legacy-model.lp --heuristic=Domain > nsp.log
+bin/make_legacy_model.py nsp.log -o legacy-model.lp
+clingo encoding/nsp.lp encoding/cli.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp legacy-model.lp --heuristic=Domain > nsp.log
 ```
 
 <br>
 
 # NSP Encoding
 
-The file **[`nsp.lp`](./nsp.lp)** serves as the ASP encoding for the Nurse Scheduling Problem (NSP). It includes the following component files:
+The file **[`nsp.lp`](./encoding/nsp.lp)** serves as the ASP encoding for the Nurse Scheduling Problem (NSP). It includes the following component files:
 
 - **[`nsp-prepro.lp`](./encoding/nsp-prepro.lp)**:
   - Handles preprocessing tasks and prepares data before solving the NSP.
@@ -432,23 +434,23 @@ function.
 
 ### How to Use These Files
 
-The file **[`nsp.lp`](./nsp.lp)** includes all constraints for NSP. The file
-**[`nsp-basic-only.lp`](./nsp-basic-only.lp)** includes only the core
-constraints from [`nsp-01-basic.lp`](./encoding/nsp-01-basic.lp) along with
+The file **[`nsp.lp`](./encoding/nsp.lp)** includes all constraints for NSP. The
+file **[`nsp-basic-only.lp`](./encoding/nsp-basic-only.lp)** includes only the
+core constraints from [`nsp-01-basic.lp`](./encoding/nsp-01-basic.lp) along with
 preprocessing ([`nsp-prepro.lp`](./encoding/nsp-prepro.lp)).
 
 If you want to add constraints selectively, start with
-**[`nsp-basic-only.lp`](./nsp-basic-only.lp)** and include additional constraint
-files as needed.
+**[`nsp-basic-only.lp`](./encoding/nsp-basic-only.lp)** and include additional
+constraint files as needed.
 
 #### Example: Adding day-by-day and nurse-by-nurse Constraints
 The following example combines the basic constraints with day-by-day and
 nurse-by-nurse constraints:
 
 ```bash
-./nspsolver.py nsp-basic-only.lp encoding/nsp-0[23]-* /path/to/nsp-instance.lp
+bin/nspsolver.py encoding/nsp-basic-only.lp encoding/nsp-0[23]-* /path/to/nsp-instance.lp
 ```
-- [`nsp-basic-only.lp`](./nsp-basic-only.lp): Core constraints only.
+- [`encoding/nsp-basic-only.lp`](./encoding/nsp-basic-only.lp): Core constraints only.
 - [`encoding/nsp-02-day-by-day.lp`](./encoding/nsp-02-day-by-day.lp): Adds day-by-day constraints.
 - [`encoding/nsp-03-nurse-by-nurse.lp`](encoding/nsp-03-nurse-by-nurse.lp): Adds nurse-by-nurse constraints.
 
