@@ -10,3 +10,4 @@ legacy-model.lp
 gen-instances/tmp-*
 comparison/tmp-*
 comparison/old
+comparison/presolved*/*.log
