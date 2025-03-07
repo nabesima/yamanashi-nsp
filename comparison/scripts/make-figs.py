@@ -6,29 +6,23 @@ import matplotlib.pyplot as plt
 
 def plot_cactus(csv_file, output_file, type):
     """Read data from the CSV file and generate a cactus plot using gnuplotlib."""
-    df_raw = pd.read_csv(csv_file, header=None)
+    df_raw = pd.read_csv(csv_file, index_col=0)
+    # print(df_raw)
 
-    # Reshape the data into key-value pairs
-    data = {}
-    for i in range(1, df_raw.shape[1], 2):
-        col_name = df_raw.iloc[:, i].iloc[0]  # Get the column name from the first row
-        values = df_raw.iloc[0:, i + 1].reset_index(drop=True)  # Get corresponding values
-        data[col_name] = values.sort_values(ascending=True).reset_index(drop=True)
-
-    df = pd.DataFrame(data)
-
-    #print(df)
+    df = df_raw.reset_index(drop=True)
+    df = df.apply(sorted, axis=0)
+    # print(df)
 
     obj_columns = [
-        (f"mp-is-p1-{type}", "MP+IS O>P"),
-        (f"mp-is-p2-{type}", "MP+IS O=P"),
-        (f"mp-is-p3-{type}", "MP+IS O<P"),
-        (f"mp-ps-p1-{type}", "MP+PS O>P"),
-        (f"mp-ps-p2-{type}", "MP+PS O=P"),
-        (f"mp-ps-p3-{type}", "MP+PS O<P"),
-        (f"mp-p1-{type}", "MP O>P"),
-        (f"mp-p2-{type}", "MP O=P"),
-        (f"mp-p3-{type}", "MP O<P"),
+        (f"mp-is-p-low-{type}", "MP+IS Low"),
+        (f"mp-is-p-mid-{type}", "MP+IS Mid"),
+        (f"mp-is-p-hi-{type}", "MP+IS High"),
+        # (f"mp-ps-p-low-{type}", "MP+PS Low"),
+        # (f"mp-ps-p-mid-{type}", "MP+PS Mid"),
+        # (f"mp-ps-p-hi-{type}", "MP+PS High"),
+        (f"mp-p-low-{type}", "MP Low"),
+        (f"mp-p-mid-{type}", "MP Mid"),
+        (f"mp-p-hi-{type}", "MP High"),
         (f"lnps-{type}", "LNPS"),
     ]
 
@@ -62,11 +56,13 @@ def plot_cactus(csv_file, output_file, type):
     plt.xlabel("Instance")
     if type == "obj":
         plt.ylabel("Objective Value")
-        plt.yscale('log')
+        #plt.yscale('log')
+        #plt.ylim(0.0001, 10000)
+        #plt.ylim(0, 10000)
     elif type == "diff":
         plt.ylabel("Differences")
-    else:
-        plt.ylabel("Time [s]")
+    elif type == "freq":
+        plt.ylabel("Frequency")
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), handlelength=4)  # Move legend to the right side
     plt.grid()
 
@@ -87,7 +83,7 @@ def main():
 
     plot_cactus(args.csv_file, args.output_file, "obj")
     plot_cactus(args.csv_file, args.output_file, "diff")
-    plot_cactus(args.csv_file, args.output_file, "time")
+    plot_cactus(args.csv_file, args.output_file, "freq")
 
 if __name__ == "__main__":
     main()
