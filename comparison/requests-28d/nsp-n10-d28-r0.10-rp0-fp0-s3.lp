@@ -1,0 +1,14 @@
+staff_neg_request(4,18,"SN").
+staff_pos_request(6,19,"BL").
+staff_pos_request(10,2,"D").
+staff_pos_request(8,8,"WR").
+staff_pos_request(4,22,"BL").
+staff_pos_request(9,26,"BL").
+staff_neg_request(7,20,"SN").
+staff_neg_request(4,20,"SN").
+staff_pos_request(9,12,"D").
+staff_pos_request(2,5,"D").
+staff_pos_request(5,24,"D").
+staff_pos_request(5,15,"AL").
+staff_pos_request(7,12,"BL").
+staff_neg_request(3,11,"SE").
