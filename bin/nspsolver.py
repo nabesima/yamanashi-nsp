@@ -41,6 +41,7 @@ class NSPSolver:
         self.strategy = strategy
         self.lnps_interval = lnps_interval
         self.is_lnps_time_expired = False
+        self.lock = threading.Lock()
         self.fixed_rects = fixed_rects
         self.clear_rects = clear_rects
         self.show_model = show_model
@@ -183,21 +184,22 @@ class NSPSolver:
                     else:
                         break
                 # print(f"result.exhausted: {result.exhausted}, result.interrupted: {result.interrupted}")
-                if self.is_lnps_time_expired and not result.exhausted and result.satisfiable:
-                    curr_pritz_targets = []
-                    for atom in self.last_model:
-                        if atom.match("ext_assigned", 3):
-                            day = atom.arguments[1].number
-                            if self.table_width and 0 <= day < self.table_width:
-                                curr_pritz_targets.append(atom)
-                    if self.last_cost == prev_cost:
-                        self.lnps_interval *= 1.1
-                    prev_cost = self.last_cost
-                    stop_event.clear()
-                    self.is_lnps_time_expired = False
-                    self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
-                    self.lnps_timer.start()
-                    continue
+                with self.lock:
+                    if self.is_lnps_time_expired and not result.exhausted and result.satisfiable:
+                        curr_pritz_targets = []
+                        for atom in self.last_model:
+                            if atom.match("ext_assigned", 3):
+                                day = atom.arguments[1].number
+                                if self.table_width and 0 <= day < self.table_width:
+                                    curr_pritz_targets.append(atom)
+                        if self.last_cost == prev_cost:
+                            self.lnps_interval *= 1.1
+                        prev_cost = self.last_cost
+                        stop_event.clear()
+                        self.is_lnps_time_expired = False
+                        self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
+                        self.lnps_timer.start()
+                        continue
 
                 if self.timeout:
                     timer.cancel()
@@ -311,16 +313,17 @@ class NSPSolver:
             condition.notify_all()
 
     def lnps_time_expired(self):
-        # print(f"must_wait_for_finding_model = {self.must_wait_for_finding_model}")
-        if self.must_wait_for_finding_model:
-            self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
-            self.lnps_timer.start()
-            return
-        print(f"\nLNPS time limit ({round(self.lnps_interval, 1)}) exceeded! Stopping Clingo...")
-        self.is_lnps_time_expired = True
-        stop_event.set()
-        with condition:
-            condition.notify_all()
+        with self.lock:
+            # print(f"must_wait_for_finding_model = {self.must_wait_for_finding_model}")
+            if self.must_wait_for_finding_model:
+                self.lnps_timer = threading.Timer(self.lnps_interval, self.lnps_time_expired)
+                self.lnps_timer.start()
+                return
+            print(f"\nLNPS time limit ({round(self.lnps_interval, 1)}) exceeded! Stopping Clingo...")
+            self.is_lnps_time_expired = True
+            stop_event.set()
+            with condition:
+                condition.notify_all()
 
     def print_statistics(self, d=None, indent=0):
 
