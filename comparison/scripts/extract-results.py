@@ -16,32 +16,34 @@ def extract_result(file, timeout=None):
     if not os.path.exists(file):
         return None
 
-    try:
-        results = subprocess.check_output(f'grep "Answer:" {file}', shell=True, text=True).strip()
-        results = strip_ansi_codes(results)
-    except subprocess.CalledProcessError:
-        return None
-
     pattern = re.compile(r"Answer: (\d+), Cost: (.+), Elapsed: (\d+.\d+)s, #Changed: (\d+)")
     nearest_entry = None
     nearest_elapsed = float('-inf')
-
     freq = 0
-    for line in results.split("\n"):
-        match = pattern.match(line)
-        if match:
-            freq += 1
-            no, costs, elapsed, changed = match.groups()
-            no = int(no)
-            costs = list(map(int, costs.split()))
-            elapsed = float(elapsed)
-            changed = int(changed)
 
-            if timeout == None or (elapsed <= timeout and elapsed > nearest_elapsed):
-                nearest_entry = {"no": no, "costs": costs, "time": elapsed, "freq": freq, "changed": changed}
-                nearest_elapsed = elapsed
-            if timeout != None and timeout < elapsed:
-                break
+    try:
+        with open(file, "r", encoding="utf-8") as f:
+            for line in f:
+                if "Answer:" not in line:
+                    continue
+                # line = strip_ansi_codes(line)
+                match = pattern.match(line)
+                if match:
+                    freq += 1
+                    no, costs, elapsed, changed = match.groups()
+                    no = int(no)
+                    costs = list(map(int, costs.split()))
+                    elapsed = float(elapsed)
+                    changed = int(changed)
+
+                    if timeout is None or (elapsed <= timeout and elapsed > nearest_elapsed):
+                        nearest_entry = {"no": no, "costs": costs, "time": elapsed, "freq": freq, "changed": changed}
+                        nearest_elapsed = elapsed
+
+                    if timeout is not None and elapsed > timeout:
+                        break
+    except Exception:
+        return None
 
     return nearest_entry
 
@@ -110,11 +112,11 @@ def main():
 
     args = parser.parse_args()
 
+    intervals = [10, 30, 60]
     priorities = ["hi", "mid", "low"]
     instances = sorted([os.path.basename(f)[:-3] for f in glob.glob("instances/nsp-*.lp")])
-    log_dirs  = [(f"{args.log_dir}/lnps", "lnps")]
+    log_dirs  = [(f"{args.log_dir}/lnps-{n}", "lnps") for n in intervals]
     log_dirs += [(f"{args.log_dir}/mp-p-{p}",p) for p in priorities]
-    #log_dirs += [(f"{args.log_dir}/mp-ps-p-{p}",p) for p in priorities]
     log_dirs += [(f"{args.log_dir}/mp-is-p-{p}",p) for p in priorities]
 
     csv_data = {}

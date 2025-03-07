@@ -12,18 +12,20 @@ def plot_cactus(csv_file, output_file, type):
     df = df_raw.reset_index(drop=True)
     df = df.apply(sorted, axis=0)
     # print(df)
+    if len(df) == 0:
+        print("No data to plot.")
+        return
 
     obj_columns = [
-        (f"mp-is-p-low-{type}", "MP+IS Low"),
-        (f"mp-is-p-mid-{type}", "MP+IS Mid"),
-        (f"mp-is-p-hi-{type}", "MP+IS High"),
-        # (f"mp-ps-p-low-{type}", "MP+PS Low"),
-        # (f"mp-ps-p-mid-{type}", "MP+PS Mid"),
-        # (f"mp-ps-p-hi-{type}", "MP+PS High"),
         (f"mp-p-low-{type}", "MP Low"),
         (f"mp-p-mid-{type}", "MP Mid"),
         (f"mp-p-hi-{type}", "MP High"),
-        (f"lnps-{type}", "LNPS"),
+        (f"mp-is-p-low-{type}", "MP+IS Low"),
+        (f"mp-is-p-mid-{type}", "MP+IS Mid"),
+        (f"mp-is-p-hi-{type}", "MP+IS High"),
+        (f"lnps-10-{type}", "LNPS 10"),
+        (f"lnps-30-{type}", "LNPS 30"),
+        (f"lnps-60-{type}", "LNPS 60"),
     ]
 
     plt.figure(figsize=(10, 6))
@@ -36,21 +38,22 @@ def plot_cactus(csv_file, output_file, type):
     colors = [
         '#d62728', '#ff9896', '#e15759',  # Red shades
         '#2ca02c', '#98df8a', '#60bd68',  # Green shades
+        '#1f77b4', '#4a90e2', '#85c1e9',  # Blue shades
         '#9467bd', '#c5b0d5', '#8c6bb1',  # Purple shades
         '#ff7f0e', '#ffbb78', '#ff9f50',  # Orange shades
     ]
 
-    markers = ['s', '^', 'D', 'x', '*', 'p', 'H', 'v', '<', '>']
+    markers = ['s', 'p', 'P', '+', 'x', 'X', 'o', 'v', '^', 'D', '*', 'H', '<', '>']
 
     # Plot each '-obj' column with different line styles
     for idx, col in enumerate(obj_columns):
-        line_style = 'solid'
-        color = 'tab:blue'
-        marker = 'o'
-        if idx < len(obj_columns) - 1:
-            line_style = line_styles[idx % len(line_styles)]
-            color = colors[idx % len(colors)]
-            marker = markers[idx % len(markers)]
+        # line_style = 'solid'
+        # color = 'tab:blue'
+        # marker = 'o'
+        # if idx < len(obj_columns) - 1:
+        line_style = line_styles[idx % len(line_styles)]
+        color = colors[idx % len(colors)]
+        marker = markers[idx % len(markers)]
         plt.plot(range(1, len(df[col[0]]) + 1), df[col[0]], label=col[1], linestyle=line_style, color=color, marker=marker, markersize=5, alpha=0.9)
 
     plt.xlabel("Instance")

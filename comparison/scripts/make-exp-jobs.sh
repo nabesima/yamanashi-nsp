@@ -48,6 +48,8 @@ if [[ -n "$time_limit" ]]; then
     options+=" --timeout $time_limit"
 fi
 
+interval_list=(10 30 60)
+
 priority_list=("hi" "mid" "low")
 declare -A priority_map
 priority_map["hi"]=20
@@ -59,22 +61,20 @@ declare -A out_dir_map
 declare -A slurm_dir_map
 declare -A encoding_map
 declare -A option_map
-out_dir_map["lnps"]="$out_dir/lnps"
-slurm_dir_map["lnps"]="tmp-$out_dir/lnps"
-encoding_map["lnps"]="nsp.lp"
-option_map["lnps"]="--lnps"
+for interval in "${interval_list[@]}"; do
+    out_dir_map["lnps-${interval}"]="$out_dir/lnps-${interval}"
+    slurm_dir_map["lnps-${interval}"]="tmp-$out_dir/lnps-${interval}"
+    encoding_map["lnps-${interval}"]="nsp.lp"
+    option_map["lnps-${interval}"]="--lnps --lnps-interval ${interval}"
+done
 for priority in "${priority_list[@]}"; do
     out_dir_map["mp-p-${priority}"]="$out_dir/mp-p-${priority}"
-    out_dir_map["mp-ps-p-${priority}"]="$out_dir/mp-ps-p-${priority}"
     out_dir_map["mp-is-p-${priority}"]="$out_dir/mp-is-p-${priority}"
     slurm_dir_map["mp-p-${priority}"]="tmp-$out_dir/mp-p-${priority}"
-    slurm_dir_map["mp-ps-p-${priority}"]="tmp-$out_dir/mp-ps-p-${priority}"
     slurm_dir_map["mp-is-p-${priority}"]="tmp-$out_dir/mp-is-p-${priority}"
     encoding_map["mp-p-${priority}"]="nsp-mp.lp"
-    encoding_map["mp-ps-p-${priority}"]="nsp-mp+ps.lp"
     encoding_map["mp-is-p-${priority}"]="nsp-mp+is.lp"
     option_map["mp-p-${priority}"]="--const mp_priority=${priority_map[$priority]}"
-    option_map["mp-ps-p-${priority}"]="--const mp_priority=${priority_map[$priority]}"
     option_map["mp-is-p-${priority}"]="--const mp_priority=${priority_map[$priority]}"
 done
 
@@ -100,11 +100,10 @@ process_instance() {
 
     new_model_file="${out_dir_map[$key]}/${base_name}.model"
     log_file="${out_dir_map[$key]}/${base_name}.log"
-    seed="${base_name##*-s}"
 
     # Construct clingo strategy options
     if [ $parallel_threads -eq 1 ]; then
-        config_opts=" --configuration=trendy --seed=$seed"
+        config_opts=" --configuration=trendy"
     else
         config_opts=" -t $parallel_threads"
     fi
@@ -132,9 +131,9 @@ EOF
     echo "SLURM script generated: $slurm_script"
 }
 
-# Enable debugging and strict error handling
-export PS4='+ [Elapsed: ${SECONDS}s] [Line $LINENO] '
-set -euxo pipefail
+# # Enable debugging and strict error handling
+# export PS4='+ [Elapsed: ${SECONDS}s] [Line $LINENO] '
+# set -euxo pipefail
 
 # Loop through all instances
 for inst in instances/nsp-*.lp; do
