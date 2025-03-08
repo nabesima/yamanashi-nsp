@@ -13,7 +13,7 @@ import argparse
 import colorama
 from colorama import Fore, Style
 from showmodel import make_shift_table, read_model
-from make_legacy_model import make_legacy_model, parse_rectangles, should_process
+from make_legacy_model import make_legacy_model, parse_rectangles
 
 # An event flag to signal when the solving process should stop (e.g., triggered by Ctrl+C).
 stop_event = threading.Event()
@@ -64,6 +64,8 @@ class NSPSolver:
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
         self.last_model = None
+        if init_model_file:
+            self.last_model = read_model(init_model_file)
         self.last_cost = None
         self.table_width = None
 
@@ -185,7 +187,7 @@ class NSPSolver:
                         break
                 # print(f"result.exhausted: {result.exhausted}, result.interrupted: {result.interrupted}")
                 with self.lock:
-                    if self.is_lnps_time_expired and not result.exhausted and result.satisfiable:
+                    if self.is_lnps_time_expired and not result.exhausted:
                         curr_pritz_targets = []
                         for atom in self.last_model:
                             if atom.match("ext_assigned", 3):
