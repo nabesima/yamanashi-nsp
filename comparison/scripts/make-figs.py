@@ -9,7 +9,8 @@ def plot_cactus(csv_file, output_file, type):
     df_raw = pd.read_csv(csv_file, index_col=0)
     # print(df_raw)
 
-    df = df_raw.reset_index(drop=True)
+    df = df_raw.reset_index(drop=True).dropna(how='any')
+    # print(df)
     df = df.apply(sorted, axis=0)
     # print(df)
     if len(df) == 0:
@@ -28,7 +29,8 @@ def plot_cactus(csv_file, output_file, type):
         (f"lnps-60-{type}", "LNPS 60"),
     ]
 
-    plt.figure(figsize=(10, 6))
+    # plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(8*0.8, 6*0.8))
 
     line_styles = [
      (0, (1, 1)),       # densely dotted
@@ -66,7 +68,7 @@ def plot_cactus(csv_file, output_file, type):
         plt.ylabel("Differences")
     elif type == "freq":
         plt.ylabel("Frequency")
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), handlelength=4)  # Move legend to the right side
+    plt.legend(loc='upper left', handlelength=4)  # Move legend to the right side
     plt.grid()
 
     plt.tight_layout()

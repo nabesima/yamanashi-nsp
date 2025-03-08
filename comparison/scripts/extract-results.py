@@ -3,8 +3,8 @@ import argparse
 import glob
 import os
 import re
-import subprocess
 import sys
+import pathlib
 
 import numpy as np
 import pandas as pd
@@ -12,11 +12,11 @@ import pandas as pd
 def strip_ansi_codes(text):
     return re.sub(r'\x1b\[[0-9;]*m', '', text)
 
+pattern = re.compile(r".*Answer: (\d+), Cost: (.+), Elapsed: (\d+.\d+)s, (#Changed: (\d+))?")
 def extract_result(file, timeout=None):
     if not os.path.exists(file):
         return None
 
-    pattern = re.compile(r"Answer: (\d+), Cost: (.+), Elapsed: (\d+.\d+)s, #Changed: (\d+)")
     nearest_entry = None
     nearest_elapsed = float('-inf')
     freq = 0
@@ -24,17 +24,15 @@ def extract_result(file, timeout=None):
     try:
         with open(file, "r", encoding="utf-8") as f:
             for line in f:
-                if "Answer:" not in line:
-                    continue
-                # line = strip_ansi_codes(line)
                 match = pattern.match(line)
                 if match:
                     freq += 1
-                    no, costs, elapsed, changed = match.groups()
+                    no, costs, elapsed, _, changed = match.groups()
                     no = int(no)
                     costs = list(map(int, costs.split()))
                     elapsed = float(elapsed)
-                    changed = int(changed)
+                    if changed is not None:
+                        changed = int(changed)
 
                     if timeout is None or (elapsed <= timeout and elapsed > nearest_elapsed):
                         nearest_entry = {"no": no, "costs": costs, "time": elapsed, "freq": freq, "changed": changed}
@@ -108,65 +106,85 @@ def compute_weighted_sum(normalized_results, base=10):
 def main():
     parser = argparse.ArgumentParser(description="Extract results from log files")
     parser.add_argument("-l", "--log-dir", type=str, help="Path to the directory containing log files")
-    parser.add_argument("-t", "--timeout", type=int, default=None, metavar="SECONDS", help="Time limit for solving (in seconds)")
+    parser.add_argument("-t", "--timeout", type=int, metavar="SECONDS", help="Time limit for solving (in seconds)")
 
     args = parser.parse_args()
 
-    intervals = [10, 30, 60]
-    priorities = ["hi", "mid", "low"]
-    instances = sorted([os.path.basename(f)[:-3] for f in glob.glob("instances/nsp-*.lp")])
-    log_dirs  = [(f"{args.log_dir}/lnps-{n}", "lnps") for n in intervals]
-    log_dirs += [(f"{args.log_dir}/mp-p-{p}",p) for p in priorities]
-    log_dirs += [(f"{args.log_dir}/mp-is-p-{p}",p) for p in priorities]
+    log_files = glob.glob(f"{args.log_dir}/**/*.log", recursive=True)
+    if not log_files:
+        print(f"No log files found in '{args.log_dir}'")
+        sys.exit(1)
 
-    csv_data = {}
-    for instance in instances:
-        #print(f"Instance: {instance}")
+    results = {}
+    for log_file in log_files:
+        path = pathlib.Path(log_file)
+        exp_name = path.parent.parent     # experiment name
+        strategy_name = path.parent.name  # strategy name
+        inst_name = path.stem             # instance name
 
-        results = {}
-        costs = {}
-        for log_dir, priority in log_dirs:
-            log_file = f"{log_dir}/{instance}.log"
-            #print(f"log_file: {log_file}")
-            results[log_dir] = extract_result(log_file, args.timeout)
-            # print(f"{log_file}: {results[log_dir]}")
-            if results[log_dir]:
-                cs = results[log_dir]['costs']
-                if priority == "hi":
-                    changed = cs.pop(0) # remove the first cost
-                    assert changed == results[log_dir]['changed']
-                elif priority == "mid":
-                    changed = cs.pop(-3) # remove the second last cost
-                    assert changed == results[log_dir]['changed']
-                elif priority == "low":
-                    changed = cs.pop(-1) # remove the last cost
-                    assert changed == results[log_dir]['changed']
-                results[log_dir]['org-costs'] = " ".join(map(str, cs))
-                costs[log_dir] = cs
-
-        if None in results.values():
+        stats = extract_result(log_file, args.timeout)
+        if stats is None:
             continue
+
+        # Remove MP objective value from the costs
+        cs = stats['costs']
+        if stats['changed'] is not None:
+            if "-hi" in strategy_name:
+                changed = cs.pop(0) # remove the first cost
+                assert changed == stats['changed'], f"{changed} != {stats['changed']}"
+            elif "-mid" in strategy_name:
+                changed = cs.pop(-3) # remove the second last cost
+                assert changed == stats['changed'], f"{changed} != {stats['changed']}"
+            elif "-low" in strategy_name:
+                changed = cs.pop(-1) # remove the last cost
+                assert changed == stats['changed'], f"{changed} != {stats['changed']}"
+        stats['org-costs'] = " ".join(map(str, cs))
+
+        if stats['changed'] is not None:
+            # Extract the number of nurses
+            match = re.search(r"nsp-n(\d+)-d(\d+)", inst_name)
+            if match is None:
+                raise ValueError(f"Unexpected instance name: {inst_name}")
+            nurses = int(match.group(1))
+            # Extract the number of prioritized days
+            match = re.search(r"-p(\d+)d-", exp_name.name)
+            if match is None:
+                days = 0
+            else:
+                days = int(match.group(1))
+            stats['org-changed'] = changed
+            stats['changed'] = changed / (nurses * days)
+
+        exp_inst_name = f"{exp_name}/{inst_name}"
+        if exp_inst_name not in results:
+            results[exp_inst_name] = {}
+        results[exp_inst_name][strategy_name] = stats
+    # print(f"results: {results}")
+
+    for exp_inst_name in results:
+        costs = {key: value['costs'] for key, value in results[exp_inst_name].items()}
 
         # Normalize the costs
         normalized_costs = normalize_objective_values(costs)
-        for log_dir, costs in normalized_costs.items():
-            results[log_dir]['nrm-costs'] = " ".join(f"{x:.2f}" for x in costs)
+        for strategy, costs in normalized_costs.items():
+            results[exp_inst_name][strategy]['nrm-costs'] = " ".join(f"{x:.2f}" for x in costs)
 
         weighted_cost = compute_weighted_sum(normalized_costs, base=10)
-        for log_dir, cost in weighted_cost.items():
-            results[log_dir]['cost'] = cost
+        for strategy, cost in weighted_cost.items():
+            results[exp_inst_name][strategy]['cost'] = cost
 
-        out_results = {}
-        for log_dir, res in results.items():
-            name = os.path.basename(log_dir)
-            out_results[f"{name}-org-obj"] = res['org-costs']
-            out_results[f"{name}-nrm-obj"] = res['nrm-costs']
-            out_results[f"{name}-obj"] = f"{res['cost']:.2f}"
-            out_results[f"{name}-diff"] = res['changed']
-            out_results[f"{name}-freq"] = res['freq']
-        csv_data[instance] = out_results
+    out_results = {}
+    for exp_inst_name in results:
+        out_results[exp_inst_name] = {}
+        for strategy in sorted(results[exp_inst_name]):
+            stats = results[exp_inst_name][strategy]
+            out_results[exp_inst_name][f"{strategy}-org-obj"] = stats['org-costs']
+            out_results[exp_inst_name][f"{strategy}-nrm-obj"] = stats['nrm-costs']
+            out_results[exp_inst_name][f"{strategy}-obj"] = f"{stats['cost']:.2f}"
+            out_results[exp_inst_name][f"{strategy}-diff"] = f"{stats['changed']:.2f}" if stats['changed'] is not None else 0
+            out_results[exp_inst_name][f"{strategy}-freq"] = stats['freq']
 
-    df = pd.DataFrame.from_dict(csv_data, orient="index")
+    df = pd.DataFrame.from_dict(out_results, orient="index")
     df.to_csv(sys.stdout)
 
 if __name__ == "__main__":
