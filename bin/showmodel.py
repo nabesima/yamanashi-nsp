@@ -609,7 +609,7 @@ def read_model(file):
 
     lines = content.split("\n")
     facts = []
-    # If it's the output from clingo, display the last model
+    # If it's the output from clingo, add the header
     if lines[0].startswith("clingo version"):
         last_index = next((i for i in reversed(range(len(lines))) if lines[i].startswith("Answer:")), -1)
         if last_index == -1 or len(lines) <= last_index + 1:
@@ -623,7 +623,6 @@ def read_model(file):
         if last_index + 2 < len(lines) and lines[last_index+2].startswith("Optimization:"):
             header += ", " + lines[last_index+2]
         facts = [f'header("{header}")'] + facts
-    # Otherwise, display the found model by nspsolver.py
     else:
         facts = [fact.rstrip(".") for fact in lines]
 
