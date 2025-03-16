@@ -1,9 +1,0 @@
-staff_pos_request(10,18,"TR").
-staff_pos_request(9,10,"BL").
-staff_neg_request(4,11,"SN").
-staff_pos_request(2,21,"BL").
-staff_neg_request(4,22,"SE").
-staff_pos_request(10,17,"D").
-staff_pos_request(4,23,"BT").
-staff_neg_request(3,22,"SN").
-staff_pos_request(2,14,"BL").

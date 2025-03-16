@@ -1,9 +1,0 @@
-staff_pos_request(4,21,"AL").
-staff_pos_request(3,16,"D").
-staff_pos_request(2,14,"WR").
-staff_pos_request(9,16,"AL").
-staff_pos_request(1,24,"BL").
-staff_pos_request(8,22,"BL").
-staff_pos_request(10,16,"AL").
-staff_pos_request(2,25,"WR").
-staff_pos_request(1,18,"AL").
