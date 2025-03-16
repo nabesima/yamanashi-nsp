@@ -28,7 +28,7 @@ def signal_handler(sig, frame):
         condition.notify_all()
 
 class NSPSolver:
-    def __init__(self, files=None, output=None, clingo_options=None, strategy="default", lnps_interval=None, init_model_file=None, fixed_rects=[], clear_rects=[], show_model=None, show_table=False, timeout=None, verbose=0, stats=0):
+    def __init__(self, files=None, output=None, clingo_options=[], strategy="default", lnps_interval=10, init_model_file=None, fixed_rects=[], clear_rects=[], show_model=None, show_table=False, timeout=None, verbose=0, stats=0):
         """
         Initialize the NSPSolver
         :param files: List of logic program files
@@ -37,7 +37,7 @@ class NSPSolver:
         """
         self.files = files if files else []
         self.output = output
-        self.clingo_options = clingo_options if clingo_options else []
+        self.clingo_options = clingo_options
         self.strategy = strategy
         self.lnps_interval = lnps_interval
         self.is_lnps_time_expired = False
@@ -56,7 +56,7 @@ class NSPSolver:
         self.pritz_targets = []
         if init_model_file:
             self.soften_hard, self.fixed_targets, self.pritz_targets = make_legacy_model(init_model_file, fixed_rects, clear_rects)
-        if init_model_file or self.strategy == "lnps":
+        if self.strategy == "lnps" or self.strategy == "is" or self.strategy == "ps":
             self.clingo_options.append("--heuristic=Domain")
             self.debug_print(f"Set heuristic to Domain")
 
@@ -64,10 +64,14 @@ class NSPSolver:
         self.control = clingo.Control(self.clingo_options)
         self.start_time = None
         self.last_model = None
+        self.table_width = None
         if init_model_file:
             self.last_model = read_model(init_model_file)
+            for atom in self.last_model:
+                if atom.match("table_width", 1):
+                    self.table_width = atom.arguments[0].number
+
         self.last_cost = None
-        self.table_width = None
 
     def load_programs(self):
         """
@@ -418,8 +422,9 @@ def main():
         help="Output file for models (default: found-model.lp)"
     )
 
-    # LNPS search strategy
-    parser.add_argument(
+    # Search strategy
+    strategy_group = parser.add_mutually_exclusive_group()
+    strategy_group.add_argument(
         "--lnps",
         action="store_true",
         help="Enable LNPS mode (without destroy). If specified, LNPS will be used."
@@ -428,6 +433,17 @@ def main():
         "--lnps-interval",
         type=int, default=10, metavar="SECONDS",
         help="Specify the interval length in terms of elapsed time since the last solution found"
+    )
+    strategy_group.add_argument(
+        "--is",
+        dest="init_sign",  # rename to init_sign
+        action="store_true",
+        help="Enable IS (init & sign) heuristics. If specified, IS will be used."
+    )
+    strategy_group.add_argument(
+        "--ps",
+        action="store_true",
+        help="Enable PS (prioritized search) heuristics. If specified, PS will be used."
     )
 
     # Initial assignment control
@@ -479,6 +495,10 @@ def main():
     strategy = "default"
     if args.lnps:
         strategy = "lnps"
+    elif args.init_sign:
+        strategy = "is"
+    elif args.ps:
+        strategy = "ps"
 
     # Parse the fixed and clear areas for the initial assignment
     fixed_rects = parse_rectangles(args.fixed)
