@@ -1,0 +1,3 @@
+[submodule "comparison"]
+	path = comparison
+	url = git@github.com:nabesima/yamanashi-nsp-comparison.git
