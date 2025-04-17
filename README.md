@@ -1,4 +1,4 @@
-# An ASP-Based NSP Solver for Yamanashi Instances
+# An ASP Encoding for Real and Artificial Nurse Scheduling Instances at Yamanashi University Hospital
 
 This repository provides encodings and a solver for the Nurse Scheduling Problem
 (NSP) at Yamanashi University Hospital, based on Answer Set Programming (ASP).
