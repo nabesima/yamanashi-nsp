@@ -9,8 +9,7 @@ violation(hard, pos_request(N, D)) :-
 
 % negative requested shifts must not be assigned
 violation(hard, neg_request(N, D)) :-
-    neg_request(N, D), date(
-        D),
+    neg_request(N, D), date(D),
     1 { ext_assigned(N, D, S) : neg_request(N, D, S) }.
 
 % for next month, positive requested shifts must be assigned
