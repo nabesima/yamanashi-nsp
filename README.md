@@ -304,17 +304,16 @@ option).
 ### Resuming Search After Interruption
 
 Even if the execution of `bin/nsp-solver.py` is interrupted (e.g., by pressing
-`Ctrl+C`),  you can efficiently resume the search by using the -i option along
-with `encoding/nsp-prioritize.lp`.  This approach assigns priority to the
-predicates with assignments recorded in the found-model.lp file, effectively
-reproducing those assignments and allowing the search to continue from where it
-left off.
+`Ctrl+C`), the search can be efficiently resumed using the `-i` and `--ps`
+options with `encoding/nsp-prioritize.lp`.
+The `-i` option loads a previously found model (default: `found-model.lp`), and `--ps` generates preference predicates for the recorded shift assignments.
+These predicates are interpreted by `nsp-prioritize.lp` to prioritize the same assignments, effectively resuming the search from where it left off.
 
 ```shell
 bin/nspsolver.py encoding/nsp.lp /path/to/nsp-instance.lp
 Ctrl+C detected! Stopping Clingo...
 
-bin/nspsolver.py encoding/nsp.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp -i
+bin/nspsolver.py encoding/nsp.lp encoding/nsp-prioritize.lp /path/to/nsp-instance.lp -i --ps
 ```
 
 ## Solving Directly with Clingo
